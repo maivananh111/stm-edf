@@ -1,0 +1,246 @@
+# STM32F4 device config.
+# This file only use for STM32F4 device series.
+
+
+
+# Menu project config.
+menu "Project"
+    config EDF_VERSION
+        string "EDF version"
+        default 3.0.0
+    config CPU_CORE
+        string "CPU core"
+        default "ARM Cortex-M4"
+    config CORE_HEADER_FILE
+        string "Device core header file"
+        default "core_cm4.h"
+    config CMSIS_HEADER_FILE
+        string "Device cmsis header file"
+        default "stm32f4xx.h"
+    config HAL_HEADER_FILE
+        string "HAL driver header file"
+        default "stm32f4xx_hal.h"
+endmenu
+# End menu project config.
+
+
+
+
+
+# Menu device base configuration.
+# Config memory, clock.
+menu "Device parameters"
+    menu "Memory."
+        config MEM_IRAM_SIZE
+            int "Total internal RAM size (KiloBytes)"
+            default 128
+            help
+            Total internal RAM capacity of STM32 device.
+    endmenu
+
+
+    menu "Clock"
+        config CLK_HSI_TRIM_VALUE
+            int "HSI trimming value"
+            default 16
+            help
+            High speed internal crystal trimming value.
+            menu "PLL"
+        menu "HSE"
+            config CLK_MIN_HSE_FREQ
+                int "Min HSE frequency (MHz)"
+                default 4
+                range 1 10
+                help 
+                Minimum of external crystal frequency.
+            config CLK_MAX_HSE_FREQ
+                int "Max HSE frequency (MHz)"
+                default 26
+                range 10 26
+                help 
+                Maximum of external crystal frequency.
+        endmenu
+        menu "Bus clock"   
+            config CLK_MAX_HCLK_FREQ
+                int "Max HCLK clock frequency (MHz)"
+                default 216 if CLK_EN_OVER_CLOCK
+                default 168 if !CLK_EN_OVER_CLOCK
+                range 8 216
+                help
+                Max HCLK clock frequency. 
+            config CLK_MAX_APB1_FREQ
+                int "Max APB1 clock frequency (MHz)"
+                default 42 if !CLK_EN_OVER_CLOCK
+                default 54 if CLK_EN_OVER_CLOCK
+                range 8 216
+                help
+                Max APB1 clock frequency.                
+            config CLK_MAX_APB2_FREQ
+                int "Max APB2 clock frequency (MHz)"
+                default 84 if !CLK_EN_OVER_CLOCK
+                default 108 if CLK_EN_OVER_CLOCK
+                range 8 216
+                help
+                Max APB2 clock frequency.     
+            config CLK_MAX_SDIO_USB_FREQ
+                int "Max SDIO-USB clock frequency (MHz)"
+                default 48
+                range 32 48
+                help
+                Max SDIO-USB clock frequency.
+        endmenu
+        menu "PLL"
+            config CLK_MIN_M_OFREQ
+                int "Min m param output frequency (MHz)"
+                default 1
+                range 1 2
+                help 
+                Minimum of PLLm output frequency.
+            config CLK_MAX_M_OFREQ
+                int "Max m param output frequency (MHz)"
+                default 2
+                range 1 2
+                help 
+                Maximum of PLLm output frequency.
+            config CLK_MIN_N_OFREQ
+                int "Min n param output frequency (MHz)"
+                default 100
+                range 50 200
+                help 
+                Minimum of PLLn output frequency.
+            config CLK_MAX_N_OFREQ
+                int "Max n param output frequency (MHz)"
+                default 432
+                range 336 432
+                help 
+                Maximum of PLLn output frequency.
+            config CLK_MIN_P_OFREQ
+                int "Min p param output frequency (MHz)"
+                default 24
+                range 16 32
+                help 
+                Minimum of PLLp output frequency.
+            config CLK_MAX_P_OFREQ
+                int "Max p param output frequency (MHz)"
+                default 180 if !CLK_EN_OVER_CLOCK
+                default 216 if CLK_EN_OVER_CLOCK
+                range 16 216
+                help 
+                Maximum of PLLp output frequency.
+        endmenu
+    endmenu
+endmenu
+# End menu device base config.
+
+
+
+
+# Menu device configuration.
+menu "Device configurations"
+    config FPU_ENABLE
+        bool "FPU(Floating point unit)"
+        default y
+
+    menu "Flash memory"
+        config MEM_FLASH_DATA_CACHE_ENABLE
+            bool "Data cache"
+            default y
+        config MEM_FLASH_INSTRUCTION_CACHE_ENABLE
+            bool "Instruction cache"
+            default y
+        config MEM_FLASH_PREFETCH_ENABLE
+            bool "Prefetch mode"
+            default y
+    endmenu
+
+    config MPU_SUPPORTED
+        bool "MPU(Memory protection unit)"
+        default n
+    menu "MPU settings"
+        depends on MPU_SUPPORTED
+        #
+        #
+        #
+        #
+    endmenu
+
+    menu "Clock."
+        config CLK_EN_OVER_CLOCK
+            bool "Enable over clock"
+            default n
+            help
+            If you want to run faster, let check it.
+        menu "Crystals value"
+            config CLK_HSI_FREQ
+                int "High speed internal crystal (HSI) frequency (MHz)"
+                default 16
+                help
+                High speed internal crystal frequency.
+            config CLK_LSI_FREQ
+                int "Low speed internal crystal (LSI) frequency (KHz)"
+                default 32
+                help
+                Low speed internal crystal frequency.
+            config CLK_HSE_FREQ
+                int "High speed external crystal (HSE) frequency (MHz)"
+                default 25
+                help
+                High speed external crystal frequency.
+            config CLK_LSE_FREQ
+                int "Low speed external crystal (LSE) frequency (Hz)"
+                default 32768
+                help
+                Low speed external crystal frequency.
+        endmenu
+        choice
+            prompt "Clock source"
+            default CLK_SOURCE_PLL
+            config CLK_SOURCE_HSI
+                bool "HSI (High speed internal crystal)"
+            config CLK_SOURCE_HSE
+                bool "HSE (High speed external crystal)"
+            config CLK_SOURCE_PLL
+                bool "PLL (Phase-locked loop)"
+        endchoice
+
+        choice
+            prompt "PLL source"
+            depends on CLK_SOURCE_PLL
+            default CLK_PLL_SOURCE_HSI
+            config CLK_PLL_SOURCE_HSI
+                bool "HSI (High speed internal crystal)"
+            config CLK_PLL_SOURCE_HSE
+                bool "HSE (High speed external crystal)"
+        endchoice
+
+        config CLK_HCLK_FREQ
+            int "HCLK frequency (MHz)"
+            default 16
+            range 2 CLK_MAX_HCLK_FREQ
+            help 
+            HCLK clock frequency.
+        config CLK_APB1_FREQ
+            int "APB1 frequency (MHz)"
+            default 16
+            range 2 CLK_MAX_APB1_FREQ
+            help 
+            APB1 clock frequency.
+        config CLK_APB2_FREQ
+            int "APB2 frequency (MHz)"
+            default 16
+            range 2 CLK_MAX_APB2_FREQ
+            help 
+            APB1 clock frequency.
+        config CLK_SDIO_USB_FREQ
+            int "SDIO-USB frequency (MHz)"
+            default CLK_MAX_SDIO_USB_FREQ
+            range 2 CLK_MAX_SDIO_USB_FREQ 
+            help 
+            SDIO-USB clock frequency.
+    endmenu
+endmenu
+# End menu device configuration.
+
+
+
+

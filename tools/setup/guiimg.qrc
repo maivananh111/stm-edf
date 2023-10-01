@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="image">
+    <file>image_icon/STM32MCU.png</file>
+  </qresource>
+  <qresource prefix="icon">
+    <file>image_icon/folder.svg</file>
+    <file>image_icon/cpu.svg</file>
+  </qresource>
+</RCC>
