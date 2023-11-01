@@ -184,6 +184,8 @@ class installer_app(Ui_MainWindow, QWidget):
         source_folder_replace = "<sourceEntries>"
         source_folder_insert = ("\t\t\t\t\t\t<entry flags=\"VALUE_WORKSPACE_PATH|RESOLVED\" kind=\"sourcePath\" name=\"edf_core\"/>\n"
                                 "\t\t\t\t\t\t<entry flags=\"VALUE_WORKSPACE_PATH|RESOLVED\" kind=\"sourcePath\" name=\"edf_rtos\"/>\n"
+                                "\t\t\t\t\t\t<entry flags=\"VALUE_WORKSPACE_PATH|RESOLVED\" kind=\"sourcePath\" name=\"edf_middlewares\"/>\n"
+                                "\t\t\t\t\t\t<entry flags=\"VALUE_WORKSPACE_PATH|RESOLVED\" kind=\"sourcePath\" name=\"edf_perdrivers\"/>\n"
                                 "\t\t\t\t\t\t<entry flags=\"VALUE_WORKSPACE_PATH|RESOLVED\" kind=\"sourcePath\" name=\"main\"/>")
 
         c_include_path_replace   = "name=\"Include paths (-I)\" superClass=\"com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths\" useByScannerDiscovery=\"false\" valueType=\"includePath\">"
@@ -267,6 +269,16 @@ class installer_app(Ui_MainWindow, QWidget):
                                         "\t\t\t<name>edf_rtos</name>\n"
                                         "\t\t\t<type>2</type>\n"
                                        f"\t\t\t<location>{self._edf_path}/components/freertos/os_c{self._device_cortex_series.lower()}</location>\n"
+                                        "\t\t</link>\n"
+                                        "\t\t<link>\n"
+                                        "\t\t\t<name>edf_middlewares</name>\n"
+                                        "\t\t\t<type>2</type>\n"
+                                       f"\t\t\t<location>{self._edf_path}/components/middlewares</location>\n"
+                                        "\t\t</link>\n"
+                                        "\t\t<link>\n"
+                                        "\t\t\t<name>edf_perdrivers</name>\n"
+                                        "\t\t\t<type>2</type>\n"
+                                       f"\t\t\t<location>{self._edf_path}/components/perdrivers</location>\n"
                                         "\t\t</link>\n"
                                         "\t</linkedResources>\n"
                                         "</projectDescription>")
@@ -437,6 +449,8 @@ class installer_app(Ui_MainWindow, QWidget):
         
         make_message_box(QMessageBox.Information, "Progress", "Setup successful.")
         logging.info("Setup successful.")
+        os.system(f"{self._edf_path}/tools/devconfig/dist/devconfig {self._project_dir}")
+
 
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -490,7 +504,7 @@ class installer_app(Ui_MainWindow, QWidget):
             make_message_box(QMessageBox.Critical, "Error", ".cproject: No such file in directory.")
             
         make_message_box(QMessageBox.Information, "Progress", "Restore successful.")
-        print("Uninstall successful.")
+        logging.info("Uninstall successful.")
 
 
         

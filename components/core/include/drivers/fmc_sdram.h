@@ -10,7 +10,7 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if CONFIG_FMC_SDRAM_ENABLE && defined(FMC_Bank5_6)
+#if CONFIG_FMC_SDRAM_EN && defined(FMC_Bank5_6)
 #define PERIPHERAL_FMC_SDRAM_AVAILABLE 1
 
 #include "common/error_check.h"
@@ -110,6 +110,6 @@ void fmc_sdram_setrefreshrate(uint32_t refreshrate);
 
 #else
 #define PERIPHERAL_FMC_SDRAM_AVAILABLE 0
-#endif /* CONFIG_FMC_SDRAM_ENABLE && defined(FMC_Bank5_6) */
+#endif /* CONFIG_FMC_SDRAM_EN && defined(FMC_Bank5_6) */
 
 #endif /* PERIPHERALS_FMC_SDRAM_H_ */

@@ -14,7 +14,7 @@
 #include "string.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#if CONFIG_LOG_MONITOR_ENABLE
+#if CONFIG_USE_LOG_MONITOR
 #if CONFIG_LOG_MONITOR_OUTPUT_USBVCP
 #include "usb_device/usb_device.h"
 #include "usb_device/usb_cdc/usbd_cdc_if.h"
@@ -32,10 +32,11 @@ void logstream_init(void);
 
 int _write(int file, char *ptr, int len);
 
-#endif /* CONFIG_LOG_MONITOR_ENABLE */
 
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* CONFIG_USE_LOG_MONITOR */
 
 #endif /* LOGCONFIG_INIT_H_ */

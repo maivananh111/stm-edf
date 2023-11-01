@@ -10,7 +10,7 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if CONFIG_PERIPH_EMBEDFLASH_ENABLE && defined(FLASH)
+#if CONFIG_PERIPH_EMBEDFLASH_EN && defined(FLASH)
 #define PERIPHERAL_EMBEDFLASH_AVAILABLE 1
 
 #include "stdio.h"
@@ -51,6 +51,6 @@ err_t embedflash_reads(uint32_t reads_address, uint32_t *pdata);
 
 #else
 #define PERIPHERAL_EMBEDFLASH_AVAILABLE 0
-#endif /* CONFIG_PERIPH_EMBEDFLASH_ENABLE && defined(FLASH) */
+#endif /* CONFIG_PERIPH_EMBEDFLASH_EN && defined(FLASH) */
 
 #endif /* PERIPHERALS_EMBEDFLASH_H_ */

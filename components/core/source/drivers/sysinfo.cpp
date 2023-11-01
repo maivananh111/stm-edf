@@ -27,7 +27,7 @@ static char *minSP = (char*)(ramend - &_Min_Stack_Size);
 
 extern "C" char *sbrk(int i);
 
-static __IO uint32_t _mem_total_ram_size = kilobytes_to_bytes(CONFIG_MEM_IRAM_SIZE);
+static __IO uint32_t _mem_total_ram_size = kilobytes_to_bytes(CONFIG_MEM_IRAM_CAPACITY);
 static __IO uint32_t _mem_total_ram_use  = 0U;
 
 extern __IO uint32_t _systick_mtick;
@@ -63,7 +63,7 @@ void dev_get_cpu_info(cpu_info_t *info){
 	info->device_id = ((DBGMCU -> IDCODE) & 0x0FFFU);
 	info->revision_id = ((DBGMCU -> IDCODE) >> 16U);
 	info->flashsize_Kb = (*(__IO uint16_t*)REG_FLASH_INFO);
-	info->ramsize_kb = CONFIG_MEM_IRAM_SIZE;
+	info->ramsize_kb = CONFIG_MEM_IRAM_CAPACITY;
 	dev_get_uniqueid(info->unique_id);
 }
 

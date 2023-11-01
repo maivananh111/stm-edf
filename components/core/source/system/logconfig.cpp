@@ -13,8 +13,8 @@
 
 
 
-#if CONFIG_LOG_MONITOR_ENABLE
-#if CONFIG_LOG_MONITOR_OUTPUT_UART
+#if CONFIG_USE_LOG_MONITOR
+#if CONFIG_LOG_MONITOR_OUTPUT_UART && CONFIG_PERIPH_UART_EN
 static uart_t log_uart;
 static uart_config_t uart_log_conf = {
 	.baudrate = CONFIG_LOG_MONITOR_UART_BAUDRATE,

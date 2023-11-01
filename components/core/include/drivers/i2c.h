@@ -11,14 +11,14 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if CONFIG_PERIPH_I2C_ENABLE && (defined(I2C1) || defined(I2C2) || defined(I2C3) || defined(I2C4) || defined(I2C5) || defined(I2C6))
+#if CONFIG_PERIPH_I2C_EN && (defined(I2C1) || defined(I2C2) || defined(I2C3) || defined(I2C4) || defined(I2C5) || defined(I2C6))
 #define PERIPHERAL_I2C_AVAILABLE 1
 
 #include "common/error_check.h"
 #include "drivers/gpio.h"
-#if CONFIG_PERIPH_DMA_ENABLE
-#include "drivers/dma.h"
-#endif /* ENABLE_DMA */
+#if CONFIG_PERIPH_DMAC_EN
+#include "drivers/dmac.h"
+#endif /* CONFIG_PERIPH_DMAC_EN */
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -96,10 +96,10 @@ class i2c{
 		void unregister_event_handler(void);
 		void event_handle(i2c_event_t event);
 	/** DMA declare */
-#if PERIPHERAL_DMA_AVAILABLE
-		void install_dma(dma_t txdma = NULL, dma_config_t *txdma_conf = NULL, dma_t rxdma = NULL, dma_config_t *rxdma_conf = NULL);
+#if PERIPHERAL_DMAC_AVAILABLE
+		void install_dma(dmac_t txdma = NULL, dmac_config_t *txdma_conf = NULL, dmac_t rxdma = NULL, dmac_config_t *rxdma_conf = NULL);
 		void uninstall_dma(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 	/** Get parameter */
 		I2C_TypeDef *get_instance(void);
 		i2c_config_t *get_config(void);
@@ -156,10 +156,10 @@ class i2c{
 
 		SemaphoreHandle_t _mutex;
 
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t _txdma = NULL, _rxdma = NULL;
-		dma_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t _txdma = NULL, _rxdma = NULL;
+		dmac_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 		void *_event_parameter = NULL;
 		i2c_evcb_t _event_handler = NULL;
 
@@ -198,6 +198,6 @@ void I2C3_ER_IRQHandler(void);
 
 #else
 #define PERIPHERAL_I2C_AVAILABLE 0
-#endif /* CONFIG_PERIPH_I2C_ENABLE && (defined(I2C1) || defined(I2C2) || defined(I2C3) || defined(I2C4) || defined(I2C5) || defined(I2C6)) */
+#endif /* CONFIG_PERIPH_I2C_EN && (defined(I2C1) || defined(I2C2) || defined(I2C3) || defined(I2C4) || defined(I2C5) || defined(I2C6)) */
 
 #endif /* PERIPHERALS_DRV_I2C_H_ */

@@ -5,7 +5,6 @@
  *      Author: A315-56
  */
 #include "devconfig.h"
-#if CONFIG_LOG_MONITOR_ENABLE
 
 #include "common/log_monitor.h"
 
@@ -19,6 +18,9 @@
 #include "string.h"
 #include "stdlib.h"
 #include "stdio.h"
+
+
+#if CONFIG_LOG_MONITOR_ENABLE
 
 static log_type_t logi = SIMP_GREEN;	// Information.
 static log_type_t logw = SIMP_YELLOW;   // Warning.
@@ -100,6 +102,8 @@ static const char *LOG_COLOR[] = {
 	"\033[46m",
 	"\033[47m",
 };
+#endif /* CONFIG_USE_LOG_MONITOR */
+
 
 /**
  * @fn void log_init(void(*)(char*))
@@ -110,7 +114,9 @@ static const char *LOG_COLOR[] = {
  * @param PrintString_Function
  */
 void log_monitor_init(void (*PrintString_Function)(char*)){
+#if CONFIG_LOG_MONITOR_ENABLE
 	plog = PrintString_Function;
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -123,6 +129,7 @@ void log_monitor_init(void (*PrintString_Function)(char*)){
  * @param log_type
  */
 void log_monitor_set_log(char *func, log_type_t log_type){
+#if CONFIG_LOG_MONITOR_ENABLE
 	if	   (strcmp(func, (char *)"INFOR")  == 0) logi = log_type;
 	else if(strcmp(func, (char *)"WARNN")  == 0) logw = log_type;
 	else if(strcmp(func, (char *)"ERROR")  == 0) loge = log_type;
@@ -131,6 +138,7 @@ void log_monitor_set_log(char *func, log_type_t log_type){
 	else if(strcmp(func, (char *)"PARAM")  == 0) logv = log_type;
 	else if(strcmp(func, (char *)"RESULT") == 0) logr = log_type;
 	else LOG_ERROR("Parameter Error", "Unknown function %s.", func);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -145,6 +153,7 @@ void log_monitor_set_log(char *func, log_type_t log_type){
  */
 
 void LOG(log_type_t log_type, const char *tag, const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -168,6 +177,7 @@ void LOG(log_type_t log_type, const char *tag, const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -180,6 +190,7 @@ void LOG(log_type_t log_type, const char *tag, const char *format, ...){
  * @param format
  */
 void LOG_INFO(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -203,6 +214,7 @@ void LOG_INFO(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -215,6 +227,7 @@ void LOG_INFO(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_WARN(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -238,6 +251,7 @@ void LOG_WARN(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -250,6 +264,7 @@ void LOG_WARN(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_ERROR(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -273,6 +288,7 @@ void LOG_ERROR(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -285,6 +301,7 @@ void LOG_ERROR(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_DEBUG(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -308,6 +325,7 @@ void LOG_DEBUG(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -320,6 +338,7 @@ void LOG_DEBUG(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_MEM(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -343,6 +362,7 @@ void LOG_MEM(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -355,6 +375,7 @@ void LOG_MEM(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_EVENT(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -378,6 +399,7 @@ void LOG_EVENT(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 /**
@@ -390,6 +412,7 @@ void LOG_EVENT(const char *tag,  const char *format, ...){
  * @param format
  */
 void LOG_RET(const char *tag,  const char *format, ...){
+#if CONFIG_LOG_MONITOR_ENABLE
 #if CONFIG_LOG_MONITOR_TICK
 #if !defined(HAL_TICK)
 	uint32_t time = get_tick();
@@ -413,20 +436,25 @@ void LOG_RET(const char *tag,  const char *format, ...){
 	plog(Output_buffer);
 	free(Temp_buffer);
 	free(Output_buffer);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 
 void LOG_RES(err_t res){
+#if CONFIG_LOG_MONITOR_ENABLE
 	LOG_RET("RESULT", "Return %s, time = %d[%s -> %s -> %d]", Result_Str[res.id], res.line);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
 void LOG_MEMORY(void){
+#if CONFIG_LOG_MONITOR_ENABLE
 	mem_info_t mem = dev_get_memory_info();
 	LOG_MEM("USED", "heap_ram_used %lu, prog_ram_used %lu, stack_ram_used %lu.", mem.heap_ram_used, mem.prog_ram_used, mem.stack_ram_used);
 	LOG_MEM("FREE", "total_free_ram %lu, free_ram %lu.", mem.total_free_ram, mem.free_ram);
+#endif /* CONFIG_USE_LOG_MONITOR */
 }
 
-#endif /* CONFIG_USE_LOG_MONITOR */
+
 
 
 

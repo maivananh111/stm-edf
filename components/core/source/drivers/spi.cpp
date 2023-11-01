@@ -14,9 +14,7 @@
 #include "common/macro.h"
 #include "drivers/system.h"
 #include "drivers/rcc.h"
-#if CONFIG_PERIPH_SPI_LOG
 #include "common/log_monitor.h"
-#endif /* CONFIG_PERIPH_SPI_LOG */
 
 
 

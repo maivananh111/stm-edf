@@ -1,54 +1,59 @@
+
+# System features configuration.
+# Use for all device.
+
+
 # Menu features.
 menu "Features"
-    menu "LOG Monitor"
-        config LOG_MONITOR_ENABLE
-            bool "Enable LOG Monitor."
+    menu "Log Monitor"
+        config USE_LOG_MONITOR
+            bool "Log monitor"
             default y
-            help
-            Enable LOG Monitor.
+
         choice
             prompt "Output stream"
             default LOG_MONITOR_OUTPUT_UART
-            depends on LOG_MONITOR_ENABLE
+            depends on USE_LOG_MONITOR
             config LOG_MONITOR_OUTPUT_UART
                 bool "UART"
             config LOG_MONITOR_OUTPUT_USBVCP
                 bool "USBVCP"
-        endchoice
+        endchoice # choice Output stream
+
         config LOG_MONITOR_LEVEL_SHORT
             bool "Display short level"
             default y
-            depends on LOG_MONITOR_ENABLE
+            depends on USE_LOG_MONITOR
             help
             For example: "I" if enable and "INFO" if not. 
         config LOG_MONITOR_TICK
             bool "Display tick"
             default y
-            depends on LOG_MONITOR_ENABLE
+            depends on USE_LOG_MONITOR
             help
             Show tick time. 
         config LOG_MONITOR_UART_INSTANCE
             string "UART num."
             default UART2
-            depends on LOG_MONITOR_ENABLE && LOG_MONITOR_OUTPUT_UART
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
             help
             UART LOG Monitor RX port.
         config LOG_MONITOR_UART_TXPIN
             string "TX pin."
             default A2
-            depends on LOG_MONITOR_ENABLE && LOG_MONITOR_OUTPUT_UART
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
             help
             UART LOG Monitor TX pin.
         config LOG_MONITOR_UART_RXPIN
             string "RX pin."
             default A3
-            depends on LOG_MONITOR_ENABLE && LOG_MONITOR_OUTPUT_UART
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
             help
             UART LOG Monitor RX pin.
         config LOG_MONITOR_UART_BAUDRATE
             int "Baudrate."
             default 115200
-            depends on LOG_MONITOR_ENABLE && LOG_MONITOR_OUTPUT_UART
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
             help
             UART LOG Monitor baudrate.
 

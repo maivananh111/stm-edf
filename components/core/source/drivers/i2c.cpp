@@ -160,7 +160,7 @@ err_t i2c::initialize(i2c_config_t *conf){
 	CLEAR_BIT(_instance->CR1, I2C_CR1_NOSTRETCH);
 	CLEAR_BIT(_instance->OAR1, I2C_OAR1_ADDMODE);
 	if(_conf->slavemode_address != 0U) SET_BIT(_instance->OAR1, (_conf->slavemode_address << I2C_OAR1_ADD1_Pos));
-#if defined(STM32F4) && defined(STM32F429xx)
+#if defined(STM32F4) && defined(FLTR)
 	(_conf->analogfilter == true)? CLEAR_BIT(_instance->FLTR, I2C_FLTR_ANOFF) : SET_BIT(_instance->FLTR, I2C_FLTR_ANOFF);
 	WRITE_REG(_instance->FLTR, (uint32_t)((_instance->FLTR & ~I2C_FLTR_DNF)| _conf->digitalnoisefilter));
 #endif

@@ -9,7 +9,6 @@
 #define LOG_MONITOR_H_
 
 #include "devconfig.h"
-#if CONFIG_LOG_MONITOR_ENABLE
 
 #include "stdio.h"
 #include "stdarg.h"
@@ -83,5 +82,4 @@ void LOG_MEMORY(void);
 }
 #endif
 
-#endif /* CONFIG_LOG_MONITOR_ENABLE */
 #endif /* LOG_MONITOR_H_ */

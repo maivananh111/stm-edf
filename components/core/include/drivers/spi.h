@@ -10,7 +10,7 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if CONFIG_PERIPH_SPI_ENABLE && (defined(SPI1) || defined(SPI2) || defined(SPI3) || defined(SPI4) || defined(SPI5) || defined(SPI6))
+#if CONFIG_PERIPH_SPI_EN && (defined(SPI1) || defined(SPI2) || defined(SPI3) || defined(SPI4) || defined(SPI5) || defined(SPI6))
 #define PERIPHERAL_SPI_AVAILABLE 1
 
 #include "stdint.h"
@@ -19,9 +19,9 @@
 
 #include "common/error_check.h"
 #include "drivers/gpio.h"
-#if CONFIG_PERIPH_DMA_ENABLE
-#include "drivers/dma.h"
-#endif /* ENABLE_DMA */
+#if CONFIG_PERIPH_DMAC_EN
+#include "drivers/dmac.h"
+#endif /* CONFIG_PERIPH_DMAC_EN */
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -127,18 +127,18 @@ class spi{
 		void unregister_event_handler(void);
 		void event_handle(spi_event_t event);
 	/** DMA declare */
-#if PERIPHERAL_DMA_AVAILABLE
-		void install_dma(dma_t txdma = NULL, dma_config_t *txdma_conf = NULL, dma_t rxdma = NULL, dma_config_t *rxdma_conf = NULL);
+#if PERIPHERAL_DMAC_AVAILABLE
+		void install_dma(dmac_t txdma = NULL, dmac_config_t *txdma_conf = NULL, dmac_t rxdma = NULL, dmac_config_t *rxdma_conf = NULL);
 		void uninstall_dma(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 	/** Get parameter. */
 		SPI_TypeDef *get_instance(void);
 		spi_config_t *get_config(void);
 		IRQn_Type get_irq(void);
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t get_txdma(void);
-		dma_t get_rxdma(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t get_txdma(void);
+		dmac_t get_rxdma(void);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 		SemaphoreHandle_t get_txmutex(void);
 		SemaphoreHandle_t get_rxmutex(void);
 	/** SPI operation. */
@@ -157,7 +157,7 @@ class spi{
 		err_t abort_transmit_it(void);
 		err_t abort_receive_it(void);
 		err_t abort_all_it(void);
-#if PERIPHERAL_DMA_AVAILABLE
+#if PERIPHERAL_DMAC_AVAILABLE
 		err_t abort_transmit_dma(void);
 		err_t abort_receive_dma(void);
 		err_t abort_all_dma(void);
@@ -165,9 +165,9 @@ class spi{
 		err_t txdma_stop(void);
 		err_t rxdma_stop(void);
 
-		void txdma_event_handler(dma_event_t event, void *param);
-		void rxdma_event_handler(dma_event_t event, void *param);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+		void txdma_event_handler(dmac_event_t event, void *param);
+		void rxdma_event_handler(dmac_event_t event, void *param);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		spi_xfer_t txinfo, rxinfo;
 
@@ -177,10 +177,10 @@ class spi{
 		gpio_pin_t _clkpin, _misopin, _mosipin, _nsspin;
 		IRQn_Type _IRQn;
 
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t _txdma = NULL, _rxdma = NULL;
-		dma_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t _txdma = NULL, _rxdma = NULL;
+		dmac_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		void *_event_parameter = NULL;
 		std::function<void(spi_event_t event, void *param)> _event_handler;
@@ -225,6 +225,6 @@ void SPI6_IRQHandler(void);
 
 #else
 #define PERIPHERAL_SPI_AVAILABLE 0
-#endif /* CONFIG_PERIPH_SPI_ENABLE && (defined(SPI1) || defined(SPI2) || defined(SPI3) || defined(SPI4) || defined(SPI5) || defined(SPI6)) */
+#endif /* CONFIG_PERIPH_SPI_EN && (defined(SPI1) || defined(SPI2) || defined(SPI3) || defined(SPI4) || defined(SPI5) || defined(SPI6)) */
 
 #endif /* PERIPHERALS_SPI_H_ */

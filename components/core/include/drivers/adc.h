@@ -10,14 +10,18 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if CONFIG_PERIPH_ADC_ENABLE && (defined(ADC1) || defined(ADC2) || defined(ADC3))
+#if CONFIG_PERIPH_ADC_EN && (defined(ADC1) || defined(ADC2) || defined(ADC3))
 #define PERIPHERAL_ADC_AVAILABLE 1
 
 #include "stdio.h"
 #include "common/error_check.h"
-#if CONFIG_PERIPH_DMA_ENABLE
-#include "drivers/dma.h"
-#endif /* ENABLE_DMA */
+#if CONFIG_PERIPH_DMAC_EN
+#include "drivers/dmac.h"
+#endif /* CONFIG_PERIPH_DMAC_EN */
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+
 
 #ifdef __cplusplus
 extern "C"{
@@ -49,7 +53,7 @@ typedef enum{
 
 typedef enum{
 	ADC_CONTINUOS_DISABLE = 0,
-	ADC_CONTINUOS_ENABLE = ADC_CR2_CONT,
+	ADC_CONTINUOS_EN = ADC_CR2_CONT,
 } adc_continuosmode_t;
 
 typedef enum{
@@ -75,50 +79,60 @@ typedef enum{
 } adc_sampletime_t;
 
 typedef struct{
-	adc_prescaler_t prescaler = ADC_PRESCALER_4;
+	adc_prescaler_t 	prescaler = ADC_PRESCALER_4;
 #if defined(STM32F4)
-	adc_resolution_t resolution = ADC_RESOLUTION_12BITS;
+	adc_resolution_t    resolution = ADC_RESOLUTION_12BITS;
 #endif /* STM32F4 */
-	adc_dataalign_t dataalign = ADC_DATAALIGN_RIGHT;
+	adc_dataalign_t     dataalign = ADC_DATAALIGN_RIGHT;
 	adc_continuosmode_t continuos = ADC_CONTINUOS_DISABLE;
-	GPIO_TypeDef **port_list;
-	uint16_t *pin_list;
-	uint8_t *rank_list;
-	adc_sampletime_t *sampletime_list;
-	uint8_t num_channel;
-	bool adc_temp_vref = false;
+	GPIO_TypeDef 		**port_list;
+	uint16_t 			*pin_list;
+	uint8_t 			*rank_list;
+	adc_sampletime_t 	*sampletime_list;
+	uint8_t 			num_channel = 1;
+	bool 				adc_temp_vref = false;
+	uint32_t 			interruptpriority = 0U;
 } adc_config_t;
 
 class adc{
 	public:
 		adc(ADC_TypeDef *adc);
-		err_t adc_init(adc_config_t *conf);
-#if PERIPHERAL_DMA_AVAILABLE
-		void add_dma(dma_t dma = NULL);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+		err_t initialize(adc_config_t *conf);
+		err_t deinitialize(void);
 
-		void adc_start_convert(void);
-		void adc_stop_convert(void);
+#if PERIPHERAL_DMAC_AVAILABLE
+		void link_dmac(dmac_t dma = NULL);
+		void unlink_dmac(void);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
-		void adc_start_convert_it(uint16_t *pdata);
-		void adc_stop_convert_it(void);
+		void start_convert(void);
+		void stop_convert(void);
 
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t adc_start_convert_dma(uint16_t *pdata, uint16_t num_channel);
-		err_t adc_stop_convert_dma(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+		void start_convert_it(uint16_t *pdata);
+		void stop_convert_it(void);
 
-		uint16_t adc_get_value(void);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t start_convert_dmac(uint16_t *pdata, uint16_t num_channel);
+		err_t stop_convert_dmac(void);
+		void dmac_event_handler(dmac_event_t event, void *param);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
+
+		uint16_t get_value(void);
 
 	private:
-		ADC_TypeDef *_adc;
+		ADC_TypeDef *_instance;
 		adc_config_t *_conf = NULL;
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t _dma = NULL;
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+		IRQn_Type _IRQn;
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t _dma = NULL;
+		dmac_config_t *_dmaconf = NULL;
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
+		SemaphoreHandle_t _mutex;
 };
 
 typedef adc* adc_t;
+
+adc_t adc_str_decode(char *str);
 
 #if defined(ADC1) && defined(ADC2)
 extern adc_t adc1;
@@ -136,6 +150,6 @@ void ADC3_IRQHandler(void);
 
 #else
 #define PERIPHERAL_ADC_AVAILABLES 0
-#endif /* CONFIG_PERIPH_ADC_ENABLE && (defined(ADC1) || defined(ADC2) || defined(ADC3)) */
+#endif /* CONFIG_PERIPH_ADC_EN && (defined(ADC1) || defined(ADC2) || defined(ADC3)) */
 
 #endif /* PERIPHERALS_ADC_H_ */

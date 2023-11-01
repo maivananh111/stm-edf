@@ -21,10 +21,10 @@
 #define RCC_SWS_TIMEOUT 	 	 5000U
 
 
-#define HSE_FREQ CONFIG_CLK_HSE_FREQ
-#define HSI_FREQ CONFIG_CLK_HSI_FREQ
-#define LSE_FREQ CONFIG_CLK_LSE_FREQ
-#define LSI_FREQ CONFIG_CLK_LSI_FREQ
+#define HSE_FREQ CONFIG_CLK_HSEF
+#define HSI_FREQ CONFIG_CLK_HSIF
+#define LSE_FREQ CONFIG_CLK_LSEF
+#define LSI_FREQ CONFIG_CLK_LSIF
 
 static rcc_config_t *_conf;
 static rcc_param_t _param;
@@ -144,7 +144,7 @@ err_t rcc_calculate(rcc_config_t *conf, rcc_param_t *param){
 
     if(conf->pll_source == PLL_SOURCE_HSE) {
     	Fxtal_MHz = (float)HSE_FREQ;
-    	if(Fxtal_MHz < CONFIG_CLK_MIN_HSE_FREQ || Fxtal_MHz > CONFIG_CLK_MAX_HSE_FREQ) return {E_INVALID, CODE_LINE};
+    	if(Fxtal_MHz < CONFIG_CLKLIM_HSEF_MIN || Fxtal_MHz > CONFIG_CLKLIM_HSEF_MAX) return {E_INVALID, CODE_LINE};
     }
     else {
     	Fxtal_MHz = (float)HSI_FREQ;
@@ -154,10 +154,10 @@ err_t rcc_calculate(rcc_config_t *conf, rcc_param_t *param){
     Fapb1_MHz = (float)conf->apb1_freq_mhz;
     Fapb2_MHz = (float)conf->apb2_freq_mhz;
     Fusb_MHz  = (float)conf->sdio_usb_freq_mhz;
-    if(Fhclk_MHz > CONFIG_CLK_MAX_HCLK_FREQ) return {E_INVALID, CODE_LINE};
-    if(Fapb1_MHz > CONFIG_CLK_MAX_APB1_FREQ) return {E_INVALID, CODE_LINE};
-    if(Fapb2_MHz > CONFIG_CLK_MAX_APB2_FREQ) return {E_INVALID, CODE_LINE};
-    if(Fusb_MHz > CONFIG_CLK_MAX_SDIO_USB_FREQ) return {E_INVALID, CODE_LINE};
+    if(Fhclk_MHz > CONFIG_CLKLIM_HCLKF_MAX)     return {E_INVALID, CODE_LINE};
+    if(Fapb1_MHz > CONFIG_CLKLIM_PCLK1F_MAX)    return {E_INVALID, CODE_LINE};
+    if(Fapb2_MHz > CONFIG_CLKLIM_PCLK2F_MAX)    return {E_INVALID, CODE_LINE};
+    if(Fusb_MHz > CONFIG_CLKLIM_SDIOF_USBF_MAX) return {E_INVALID, CODE_LINE};
 
 #if defined(STM32F1)
     for(cry_div = 1; cry_div<=2; cry_div++){
@@ -178,13 +178,13 @@ err_t rcc_calculate(rcc_config_t *conf, rcc_param_t *param){
 #elif defined(STM32F4)
     for (m = Fxtal_MHz; m >= 2; m--) {
         __IO float pllm_MHz = Fxtal_MHz / m;
-        if (pllm_MHz >= CONFIG_CLK_MIN_M_OFREQ && pllm_MHz <= CONFIG_CLK_MAX_M_OFREQ) {
+        if (pllm_MHz >= CONFIG_CLKLIM_PLLMF_MIN && pllm_MHz <= CONFIG_CLKLIM_PLLMF_MAX) {
             for (n = 432; n >= 50; n--) {
                 __IO float plln_MHz = pllm_MHz * n;
-                if (plln_MHz >= CONFIG_CLK_MIN_N_OFREQ && plln_MHz <= CONFIG_CLK_MAX_N_OFREQ) {
+                if (plln_MHz >= CONFIG_CLKLIM_PLLNF_MIN && plln_MHz <= CONFIG_CLKLIM_PLLNF_MAX) {
                     for (p = 2; p <= 8; p += 2) {
                         __IO float pllp_MHz = plln_MHz / p;
-                        if (pllp_MHz >= CONFIG_CLK_MIN_P_OFREQ && pllp_MHz <= CONFIG_CLK_MAX_P_OFREQ) {
+                        if (pllp_MHz >= CONFIG_CLKLIM_PLLPF_MIN && pllp_MHz <= CONFIG_CLKLIM_PLLPF_MAX) {
 							for (hclk_div = 1; hclk_div <= 256; hclk_div *= 2) {
 								if(hclk_div != 32){
 									__IO float cpu_hclk_MHz = pllp_MHz / hclk_div;
@@ -287,7 +287,7 @@ err_t rcc_init(rcc_config_t *conf){
 			return ret;
 		}
 		RCC->CR &= ~RCC_CR_HSITRIM_Msk;
-		RCC->CR |= (CONFIG_CLK_HSI_TRIM_VALUE << RCC_CR_HSITRIM_Pos);
+		RCC->CR |= (CONFIG_CLK_HSI_TRIM << RCC_CR_HSITRIM_Pos);
 
 	}
 	else if(_conf->sysclk_source == HSE_CRYSTAL || _conf->pll_source == PLL_SOURCE_HSE){

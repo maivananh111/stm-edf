@@ -10,7 +10,7 @@
 
 #include "devconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
-#if (CONFIG_PERIPH_TIM_ENABLE && (defined(TIM1) || defined(TIM2) || defined(TIM3) || defined(TIM4) || \
+#if (CONFIG_PERIPH_TIM_EN && (defined(TIM1) || defined(TIM2) || defined(TIM3) || defined(TIM4) || \
 					defined(TIM5) || defined(TIM6) || defined(TIM7) || defined(TIM8) || \
 					defined(TIM9) || defined(TIM10) || defined(TIM11) || defined(TIM12) || \
 					defined(TIM13) || defined(TIM14)))
@@ -18,7 +18,7 @@
 
 #include "stdio.h"
 #include "common/error_check.h"
-#if CONFIG_PERIPH_DMA_ENABLE
+#if CONFIG_PERIPH_DMAC_EN
 #include "drivers/dma.h"
 #endif
 
@@ -50,7 +50,7 @@ typedef enum{
 
 typedef enum{
 	TIM_ARP_DISABLE = 0U,
-	TIM_ARP_ENABLE,
+	TIM_ARP_EN,
 } tim_arpe_t;
 
 typedef enum{
@@ -61,7 +61,7 @@ typedef enum{
 
 typedef enum{
 	TIM_INTERRUPT_DISABLE = 0U,
-	TIM_INTERRUPT_ENABLE = 1U,
+	TIM_INTERRUPT_EN = 1U,
 } tim_interrupt_t;
 
 
@@ -95,12 +95,12 @@ typedef enum{
 
 typedef enum{
 	TIM_PRELOAD_DISABLE = 0U,
-	TIM_PRELOAD_ENABLE,
+	TIM_PRELOAD_EN,
 } tim_preload_t;
 
 typedef enum{
 	TIM_FASTMODE_DISABLE = 0U,
-	TIM_FASTMODE_ENABLE,
+	TIM_FASTMODE_EN,
 } tim_fast_mode_t;
 
 
@@ -395,6 +395,6 @@ void TIM8_TRG_COM_TIM14_IRQHandler(void);
 
 #else
 #define PERIPHERAL_TIM_AVAILABLE 0
-#endif /* CONFIG_PERIPH_TIM_ENABLE */
+#endif /* CONFIG_PERIPH_TIM_EN */
 
 #endif /* PERIPHERALS_TIM_H_ */

@@ -30,18 +30,18 @@
 #include "drivers/fmc_sdram.h"
 #endif /* CONFIG_MEM_SUPPORT_SDRAM */
 
-#if CONFIG_WATCHDOG_ENABLE
+#if CONFIG_WATCHDOG_EN
 #include "drivers/iwdg.h"
-#endif /* CONFIG_WATCHDOG_ENABLE */
+#endif /* CONFIG_WATCHDOG_EN */
 
-#if CONFIG_PERIPH_RNG_ENABLE
-#include "drivers/rng.h"
-#endif /* CONFIG_PERIPH_RNG_ENABLE */
+#if CONFIG_PERIPH_TRNG_EN
+#include "drivers/trng.h"
+#endif /* CONFIG_PERIPH_RNG_EN */
 
-#if CONFIG_LOG_MONITOR_ENABLE
+#if CONFIG_USE_LOG_MONITOR
 #include "common/log_monitor.h"
 #include "logconfig.h"
-#endif /* CONFIG_LOG_MONITOR_ENABLE */
+#endif /* CONFIG_USE_LOG_MONITOR */
 
 #ifdef __cplusplus
 extern "C"{

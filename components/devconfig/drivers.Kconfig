@@ -1,41 +1,37 @@
 
-# Menu Peripherals configuration.
-menu "Peripherals config"
-# EMBEDFLASH config.
-    menu "EMBEDFLASH"
-        config PERIPH_EMBEDFLASH_ENABLE
+# Peripherals drivers configurations.
+menu "Peripherals drivers configurations"
+
+
+
+# Embedded Flash memory config.
+    menu "[FLASH]Embedded Flash memory"
+        config PERIPH_EMBEDFLASH_EN
             bool "Enable"
             default y
-    endmenu
-# End EXTI config.
+    endmenu # Embedded Flash memory
 
-# System tick config.
-    menu "SYSTICK"
-        config PERIPH_SYSTICK_INTERRUPT_PRIORITY
-            int "Interrupt priority"
-            range 0 15
-            default 15
-            help
-            System tick interrupt priority.
+# System tick timer config.
+    menu "[SYSTICK]System tick timer"
         config PERIPH_SYSTICK_FREQUENCY
             int "Frequency (Hz)"
             range 10 1000
             default 1000
-            help
-            System tick frequency.
-    endmenu
-# End System tick config.
+        config PERIPH_SYSTICK_INTERRUPT_PRIORITY
+            int "Interrupt priority"
+            range 0 15
+            default 15
+    endmenu # System tick timer
 
-# IWDG config.
-    menu "IWDG"
-        config PERIPH_IWDG_ENABLE
+# Independent watchdog timer config.
+    menu "[IWDG]Independent watchdog timer"
+        config PERIPH_IWDG_EN
             bool "Enable"
             default y
-    endmenu
-# End EXTI config.
+    endmenu # Independent watchdog timer
 
-# GPIO config.
-    menu "GPIO"
+# General Purpose Input/Output config.
+    menu "[GPIO]General Purpose Input/Output"
     # Default output speed 
         choice
             prompt "Default output speed"
@@ -57,163 +53,148 @@ menu "Peripherals config"
             config PERIPH_GPIO_DEFAULT_OUTPUT_OPENDRAIN 
                 bool "Open drain"
         endchoice
-    endmenu
-#end GPIO config.
+    endmenu # General Purpose Input/Output
 
-# EXTI config.
-    menu "EXTI"
-        config PERIPH_EXTI_ENABLE
+# External interrupt controller config.
+    menu "[EINTC]External interrupt controller"
+        config PERIPH_EINTC_EN
             bool "Enable"
             default y
-        config PERIPH_EXTI_LOG
+        config PERIPH_EINTC_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_EXTI_ENABLE && LOG_MONITOR_ENABLE
-    endmenu
-# End EXTI config.
+            depends on PERIPH_EINTC_EN && USE_LOG_MONITOR
+    endmenu # External interrupt controller
 
-# DMA config.
-    menu "DMA"
-        config PERIPH_DMA_ENABLE
+# Direct memory access controller config.
+    menu "[DMAC]Direct memory access controller"
+        config PERIPH_DMAC_EN
             bool "Enable"
             default y
-        config PERIPH_DMA_DEFAULT_OPERATION_TIMEOUT
+        config PERIPH_DMAC_DEFAULT_OPERATION_TIMEOUT
             int "Default operation timeout"
             default 1000
-            depends on PERIPH_DMA_ENABLE
-        config PERIPH_DMA_LOG
+            depends on PERIPH_DMAC_EN
+        config PERIPH_DMAC_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_DMA_ENABLE && LOG_MONITOR_ENABLE
-    endmenu
-# End DMA config.
+            depends on PERIPH_DMAC_EN && USE_LOG_MONITOR
+    endmenu # Direct memory access controller
 
-# ADC config.
-    menu "ADC"
-        config PERIPH_ADC_ENABLE
+# Analog to digital converter config.
+    menu "[ADC]Analog to digital converter"
+        config PERIPH_ADC_EN
             bool "Enable"
             default y
         config PERIPH_ADC_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_ADC_ENABLE && LOG_MONITOR_ENABLE
-    endmenu
-# End ADC config.
+            depends on PERIPH_ADC_EN && USE_LOG_MONITOR
+    endmenu # Analog to digital converter
 
-# TIM config.
-    menu "TIM"
-        config PERIPH_TIM_ENABLE
+# Timer/Counter config.
+    menu "[TIM]Timer/counter"
+        config PERIPH_TIM_EN
             bool "Enable"
             default y
         config PERIPH_TIM_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_TIM_ENABLE && LOG_MONITOR_ENABLE
-    endmenu
-# End TIM config.
+            depends on PERIPH_TIM_EN && USE_LOG_MONITOR
+    endmenu # Timer/counter
 
-# UART config.
-    menu "UART"
-        config PERIPH_UART_ENABLE
+# Universal Asynchronous Receiver/Transmitter config.
+    menu "[UART]Universal asynchronous receiver/transmitter"
+        config PERIPH_UART_EN
             bool "Enable"
             default y
         config PERIPH_UART_LOG
             bool "LOG enable"
             default n
-            depends on PERIPH_UART_ENABLE && LOG_MONITOR_ENABLE
+            depends on PERIPH_UART_EN && USE_LOG_MONITOR
         config PERIPH_UART_DEFAULT_OPERATION_TIMEOUT
             int "Default operation timeout"
             default 1000
             range 1 60000
-            depends on PERIPH_UART_ENABLE
+            depends on PERIPH_UART_EN
         config PERIPH_UART_DEFAULT_BAUDRATE 
             int "Default baudrate"
             default 115200
             range 1200 2000000
-            depends on PERIPH_UART_ENABLE
-    endmenu
-# End UART config.
+            depends on PERIPH_UART_EN
+    endmenu # Universal Asynchronous Receiver/Transmitter
 
-# I2C config.
-    menu "I2C"
-        config PERIPH_I2C_ENABLE
+# Inter-Integrated Circuit config.
+    menu "[I2C]Inter-Integrated Circuit"
+        config PERIPH_I2C_EN
             bool "Enable"
             default y
         config PERIPH_I2C_DEFAULT_ANALOG_FILTER
             bool "Default analog filter"
             default y
-            depends on PERIPH_I2C_ENABLE && LOG_MONITOR_ENABLE
+            depends on PERIPH_I2C_EN && USE_LOG_MONITOR
         config PERIPH_I2C_DEFAULT_DIGITAL_FILTER
             int "Default digital filter"
             default 7
             range 0 15
-            depends on PERIPH_I2C_ENABLE && LOG_MONITOR_ENABLE
+            depends on PERIPH_I2C_EN && USE_LOG_MONITOR
         config PERIPH_I2C_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_I2C_ENABLE && LOG_MONITOR_ENABLE
+            depends on PERIPH_I2C_EN && USE_LOG_MONITOR
         config PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT
             int "Default operation timeout"
             default 1000
             range 1 60000
-            depends on PERIPH_I2C_ENABLE
-    endmenu
-# End I2C config.
+            depends on PERIPH_I2C_EN
+    endmenu # Inter-Integrated Circuit
 
-# SPI config.
-    menu "SPI"
-        config PERIPH_SPI_ENABLE
+# Serial Peripheral Interface config.
+    menu "[SPI]Serial Peripheral Interface"
+        config PERIPH_SPI_EN
             bool "Enable"
             default y
         config PERIPH_SPI_LOG
             bool "LOG enable"
             default y
-            depends on PERIPH_SPI_ENABLE && LOG_MONITOR_ENABLE
+            depends on PERIPH_SPI_EN && USE_LOG_MONITOR
         config PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT
             int "Default operation timeout"
             default 1000
             range 1 60000
-            depends on PERIPH_SPI_ENABLE
-    endmenu
-# End SPI config.
+            depends on PERIPH_SPI_EN
+    endmenu # Serial Peripheral Interface
 
-# RNG config.
-    menu "RNG"
-        config PERIPH_RNG_ENABLE
+# True random number generator config.
+    menu "[TRNG]True random number generator"
+        config PERIPH_TRNG_EN
             bool "Enable"
             default y
-        config PERIPH_RNG_LOG
+        config PERIPH_TRNG_LOG
             bool "LOG enable"
             default n
-            depends on PERIPH_RNG_ENABLE && LOG_MONITOR_ENABLE
-    endmenu
-# End RNG config.
+            depends on PERIPH_TRNG_EN && USE_LOG_MONITOR
+    endmenu # True random number generator
 
-# Menu FMC SDRAM config.
-    menu "FMC-SDRAM"
-        config FMC_SDRAM_ENABLE
+# Flexible memory controller (For SDRAM) config.
+    menu "[FMC-SDRAM]Flexible memory controller"
+        config FMC_SDRAM_EN
             bool "Enable"
             default n
-            help
-            Flexible Memory Controller - SDRAM enable
         choice
             prompt "Bank"
             default FMC_SDRAM_BANK1
-            depends on FMC_SDRAM_ENABLE
+            depends on FMC_SDRAM_EN
             config FMC_SDRAM_BANK1
                 bool "Bank1"
             config FMC_SDRAM_BANK2
                 bool "Bank2"
-            help
-            FMC-SDRAM bank
         endchoice
         config FMC_SDRAM_DEFAULT_TIMEOUT
-            int "Default timeout (Miliseconds)"
+            int "Default timeout(ms)"
             default 5000
-            help
-            FMC-SDRAM default timeout (Miliseconds).
-        menu "Hardware connection."
-            depends on FMC_SDRAM_ENABLE
+        menu "Hardware connection"
+            depends on FMC_SDRAM_EN
             config FMC_SDRAM_A0_PIN
                 string "A0 pin"
                 default F0
@@ -334,8 +315,6 @@ menu "Peripherals config"
                 default C0
         endmenu
 
-    endmenu
-# End menu FMC SDRAM config.
+    endmenu # Flexible memory controller
 
-endmenu
-# End Peripherals configuration.
+endmenu # Peripherals drivers
