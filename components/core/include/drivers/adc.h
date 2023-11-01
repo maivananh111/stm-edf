@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_ADC_H_
 #define PERIPHERALS_ADC_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_ADC_EN && (defined(ADC1) || defined(ADC2) || defined(ADC3))
 #define PERIPHERAL_ADC_AVAILABLE 1

@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_SPI_H_
 #define PERIPHERALS_SPI_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_SPI_EN && (defined(SPI1) || defined(SPI2) || defined(SPI3) || defined(SPI4) || defined(SPI5) || defined(SPI6))
 #define PERIPHERAL_SPI_AVAILABLE 1
@@ -110,10 +110,8 @@ struct spi_xfer_t{
 	uint16_t length = 0U;
 };
 
-typedef void (*spi_evcb_t)(spi_event_t, void *);
+using spi_event_handler_f = std::function<void(spi_event_t, void *)>;
 
-class spi;
-typedef spi* spi_t;
 
 class spi{
 	public:
@@ -123,21 +121,21 @@ class spi{
 		err_t initialize(spi_config_t *conf);
 		void deinitilize(void);
 	/** Event handle. */
-		void register_event_handler(std::function<void(spi_event_t event, void *param)> event_handler_function, void *param = NULL);
+		void register_event_handler(spi_event_handler_f event_handler_function, void *param = NULL);
 		void unregister_event_handler(void);
 		void event_handle(spi_event_t event);
-	/** DMA declare */
+	/** DMAC link */
 #if PERIPHERAL_DMAC_AVAILABLE
-		void install_dma(dmac_t txdma = NULL, dmac_config_t *txdma_conf = NULL, dmac_t rxdma = NULL, dmac_config_t *rxdma_conf = NULL);
-		void uninstall_dma(void);
+		void link_dmac(dmac_t txdmac = NULL, dmac_t rxdmac = NULL);
+		void unlink_dmac(void);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 	/** Get parameter. */
 		SPI_TypeDef *get_instance(void);
 		spi_config_t *get_config(void);
 		IRQn_Type get_irq(void);
 #if PERIPHERAL_DMAC_AVAILABLE
-		dmac_t get_txdma(void);
-		dmac_t get_rxdma(void);
+		dmac_t get_txdmac(void);
+		dmac_t get_rxdmac(void);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 		SemaphoreHandle_t get_txmutex(void);
 		SemaphoreHandle_t get_rxmutex(void);
@@ -150,23 +148,23 @@ class spi{
 		err_t receive_it(uint32_t pdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
 		err_t transmit_receive_it(uint32_t ptxdata, uint32_t prxdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
 
-		err_t transmit_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
-		err_t receive_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
-		err_t transmit_receive_dma(uint32_t ptxdata, uint32_t prxdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
+		err_t transmit_dmac(uint32_t pdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
+		err_t receive_dmac(uint32_t pdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
+		err_t transmit_receive_dmac(uint32_t ptxdata, uint32_t prxdata, uint32_t data_size, uint16_t timeout = CONFIG_PERIPH_SPI_DEFAULT_OPERATION_TIMEOUT);
 
 		err_t abort_transmit_it(void);
 		err_t abort_receive_it(void);
 		err_t abort_all_it(void);
 #if PERIPHERAL_DMAC_AVAILABLE
-		err_t abort_transmit_dma(void);
-		err_t abort_receive_dma(void);
-		err_t abort_all_dma(void);
+		err_t abort_transmit_dmac(void);
+		err_t abort_receive_dmac(void);
+		err_t abort_all_dmac(void);
 
-		err_t txdma_stop(void);
-		err_t rxdma_stop(void);
+		err_t txdmac_stop(void);
+		err_t rxdmac_stop(void);
 
-		void txdma_event_handler(dmac_event_t event, void *param);
-		void rxdma_event_handler(dmac_event_t event, void *param);
+		void txdmac_event_handler(dmac_event_t event, void *param);
+		void rxdmac_event_handler(dmac_event_t event, void *param);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		spi_xfer_t txinfo, rxinfo;
@@ -178,12 +176,12 @@ class spi{
 		IRQn_Type _IRQn;
 
 #if PERIPHERAL_DMAC_AVAILABLE
-		dmac_t _txdma = NULL, _rxdma = NULL;
-		dmac_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
+		dmac_t _txdmac = NULL, _rxdmac = NULL;
+		dmac_config_t *_txdmac_conf = NULL, *_rxdmac_conf = NULL;
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		void *_event_parameter = NULL;
-		std::function<void(spi_event_t event, void *param)> _event_handler;
+		spi_event_handler_f _event_handler = NULL;
 
 		SemaphoreHandle_t _txmutex;
 		SemaphoreHandle_t _rxmutex;
@@ -191,6 +189,8 @@ class spi{
 		err_t hardware_initialize(void);
 		void hardware_deinitialize(void);
 };
+
+typedef spi* spi_t;
 
 spi_t spi_str_decode(char *str);
 

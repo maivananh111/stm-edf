@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_DRV_FMC_SDRAM_H_
 #define PERIPHERALS_DRV_FMC_SDRAM_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_FMC_SDRAM_EN && defined(FMC_Bank5_6)
 #define PERIPHERAL_FMC_SDRAM_AVAILABLE 1

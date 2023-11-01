@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_EMBEDFLASH_H_
 #define PERIPHERALS_EMBEDFLASH_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_EMBEDFLASH_EN && defined(FLASH)
 #define PERIPHERAL_EMBEDFLASH_AVAILABLE 1

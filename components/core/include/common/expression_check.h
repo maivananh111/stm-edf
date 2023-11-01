@@ -8,7 +8,7 @@
 #ifndef EXPRESSION_CHECK_H_
 #define EXPRESSION_CHECK_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #include "common/log_monitor.h"
 

@@ -10,7 +10,7 @@
 #include "drivers/iwdg.h"
 #include "drivers/system.h"
 #include "drivers/sysinfo.h"
-#if CONFIG_LOG_MONITOR_ENABLE
+#if CONFIG_USE_LOG_MONITOR
 #include "common/log_monitor.h"
 
 static const char *TAG = (const char *)"RTOS_PORT";
@@ -40,7 +40,7 @@ void vApplicationDaemonTaskStartupHook(void){
 
 #if configCHECK_FOR_STACK_OVERFLOW
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName){
-#if CONFIG_LOG_MONITOR_ENABLE
+#if CONFIG_USE_LOG_MONITOR
 	LOG_ERROR(TAG, "Stack overflow on %s.", pcTaskName);
 #endif /* CONFIG_USE_LOG_MONITOR */
 	for(uint32_t i=0; i< 80000000; i++) __NOP();
@@ -50,7 +50,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName){
 
 #if configUSE_MALLOC_FAILED_HOOK
 void vApplicationMallocFailedHook(void){
-#if CONFIG_LOG_MONITOR_ENABLE
+#if CONFIG_USE_LOG_MONITOR
 	LOG_ERROR(TAG, "Memory allocation fail.");
 #endif /* CONFIG_USE_LOG_MONITOR */
 	for(uint32_t i=0; i< 80000000; i++) __NOP();

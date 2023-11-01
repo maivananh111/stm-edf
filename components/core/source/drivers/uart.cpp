@@ -227,11 +227,13 @@ err_t uart::initialize(uart_config_t *conf){
 	err_t ret;
 
 	_conf = conf;
+
 	ret = hardware_initialize();
 	IS_ERROR(ret){
 		ERROR_CAPTURE(ret);
 		return ret;
 	}
+
 	CLEAR_REG(_instance->CR1);
 	SET_BIT(_instance->CR1, USART_CR1_TE | USART_CR1_RE | USART_CR1_UE);
 
@@ -259,9 +261,16 @@ err_t uart::initialize(uart_config_t *conf){
 }
 
 err_t uart::deinitialize(void){
+	hardware_deinitialize();
 #if PERIPHERAL_DMAC_AVAILABLE
-	_txdma = NULL;
-	_rxdma = NULL;
+	if(_txdmac != NULL){
+		_txdmac->deinitialize();
+		_txdmac = NULL;
+	}
+	if(_rxdmac != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac = NULL;
+	}
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 	CLEAR_REG(_instance->CR1);
@@ -284,7 +293,7 @@ err_t uart::deinitialize(void){
 
 
 
-void uart::register_event_handler(std::function<void(uart_event_t event, void *param)> event_handler_function, void *param){
+void uart::register_event_handler(uart_event_handler_f event_handler_function, void *param){
 	_event_handler = event_handler_function;
 	_event_parameter = param;
 }
@@ -301,47 +310,47 @@ void uart::event_handle(uart_event_t event){
 
 
 #if PERIPHERAL_DMAC_AVAILABLE
-void uart::link_dma(dmac_t txdma, dmac_t rxdma){
-	_txdma = txdma;
-	_rxdma = rxdma;
+void uart::link_dmac(dmac_t txdmac, dmac_t rxdmac){
+	_txdmac = txdmac;
+	_rxdmac = rxdmac;
 
-	if(_txdma_conf != NULL) free(_txdma_conf);
-	if(_rxdma_conf != NULL) free(_rxdma_conf);
-	_txdma_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
-	_rxdma_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
-	if(_txdma_conf != NULL){
-		_txdma_conf->direction = DMAC_MEM_TO_PERIPH;
-		_txdma_conf->datasize  = DMAC_DATASIZE_8BIT;
-		_txdma_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
+	if(_txdmac_conf != NULL) free(_txdmac_conf);
+	if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+	_txdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	_rxdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	if(_txdmac_conf != NULL){
+		_txdmac_conf->direction = DMAC_MEM_TO_PERIPH;
+		_txdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_txdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_txdma->initialize(_txdma_conf);
-		_txdma->register_event_handler(FUNC_BIND(&uart::txdma_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
+		_txdmac->initialize(_txdmac_conf);
+		_txdmac->register_event_handler(FUNC_BIND(&uart::txdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma_conf->direction = DMAC_PERIPH_TO_MEM;
-		_rxdma_conf->datasize  = DMAC_DATASIZE_8BIT;
-		_rxdma_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
+	if(_rxdmac_conf != NULL){
+		_rxdmac_conf->direction = DMAC_PERIPH_TO_MEM;
+		_rxdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_rxdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_rxdma->initialize(_rxdma_conf);
-		_rxdma->register_event_handler(FUNC_BIND(&uart::rxdma_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
+		_rxdmac->initialize(_rxdmac_conf);
+		_rxdmac->register_event_handler(FUNC_BIND(&uart::rxdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
 }
 
-void uart::unlink_dma(void){
-	if(_txdma_conf != NULL){
-		_txdma->deinitialize();
-		_txdma->unregister_event_handler();
+void uart::unlink_dmac(void){
+	if(_txdmac_conf != NULL){
+		_txdmac->deinitialize();
+		_txdmac->unregister_event_handler();
+		_txdmac = NULL;
+		if(_txdmac_conf != NULL) free(_txdmac_conf);
+		_txdmac_conf = NULL;
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma->deinitialize();
-		_rxdma->unregister_event_handler();
+	if(_rxdmac_conf != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac->unregister_event_handler();
+		_rxdmac = NULL;
+		if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+		_rxdmac_conf = NULL;
 	}
-	_txdma = NULL;
-	_rxdma = NULL;
-	if(_txdma_conf != NULL) free(_txdma_conf);
-	if(_rxdma_conf != NULL) free(_rxdma_conf);
-	_txdma_conf = NULL;
-	_rxdma_conf = NULL;
 }
 
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
@@ -367,15 +376,7 @@ uart_reception_t uart::get_reception_mode(void){
 char uart::get_endchar(void){
 	return _endchar;
 }
-#if PERIPHERAL_DMAC_AVAILABLE
-dmac_t uart::get_txdma(void){
-	return _txdma;
-}
 
-dmac_t uart::get_rxdma(void){
-	return _rxdma;
-}
-#endif /* PERIPHERAL_DMAC_AVAILABLE */
 SemaphoreHandle_t uart::get_txmutex(void){
 	return _txmutex;
 }
@@ -383,6 +384,16 @@ SemaphoreHandle_t uart::get_txmutex(void){
 SemaphoreHandle_t uart::get_rxmutex(void){
 	return _rxmutex;
 }
+
+#if PERIPHERAL_DMAC_AVAILABLE
+dmac_t uart::get_txdmac(void){
+	return _txdmac;
+}
+
+dmac_t uart::get_rxdmac(void){
+	return _rxdmac;
+}
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 err_t uart::get_rxbuffer(uint8_t **ppdata){
 	err_t ret;
@@ -578,11 +589,11 @@ err_t uart::receive_it(uart_reception_t reception, uint16_t data_size, uint16_t 
 }
 
 #if PERIPHERAL_DMAC_AVAILABLE
-err_t uart::transmit_dma(uint8_t *pdata, uint16_t data_size, uint16_t timeout){
+err_t uart::transmit_dmac(uint8_t *pdata, uint16_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_txmutex, NULL)) : (err = xSemaphoreTake(_txmutex, timeout));
@@ -597,11 +608,11 @@ err_t uart::transmit_dma(uint8_t *pdata, uint16_t data_size, uint16_t timeout){
 			.pdest = (uint32_t)&_instance->DR,
 			.xfersize = txinfo.length,
 		};
-		ret = _txdma->config_start_session(xfer_conf);
+		ret = _txdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret){
 			ERROR_CAPTURE(ret);
 			UART_DBG("UART DMA error");
-			_txdma->stop_session();
+			_txdmac->stop_session();
 			event_handle(UART_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_txmutex, NULL) : xSemaphoreGive(_txmutex);
 			return ret;
@@ -616,11 +627,11 @@ err_t uart::transmit_dma(uint8_t *pdata, uint16_t data_size, uint16_t timeout){
 	return ret;
 }
 
-err_t uart::receive_dma(uart_reception_t reception, uint16_t data_size, uint16_t timeout){
+err_t uart::receive_dmac(uart_reception_t reception, uint16_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 	ASSERT_THEN_RETURN_VALUE((reception == UART_RECEPTION_UNTIL_ENDCHAR),
 			ERROR_SET(ret, E_NOT_SUPPORTED), ret, LOG_ERROR, _TAG, "UART reception until end char not supported in dma mode");
@@ -636,12 +647,12 @@ err_t uart::receive_dma(uart_reception_t reception, uint16_t data_size, uint16_t
 			.pdest = (uint32_t)rxinfo.buffer,
 			.xfersize = rxinfo.length,
 		};
-		ret = _rxdma->config_start_session(xfer_conf);
+		ret = _rxdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret){
 			ERROR_CAPTURE(ret);
 			UART_DBG("UART DMA error");
 			release_rxbuffer();
-			_rxdma->stop_session();
+			_rxdmac->stop_session();
 			event_handle(UART_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_rxmutex, NULL) : xSemaphoreGive(_rxmutex);
 			return ret;
@@ -666,14 +677,14 @@ err_t uart::receive_dma(uart_reception_t reception, uint16_t data_size, uint16_t
 }
 
 
-err_t uart::txdma_stop(void){
+err_t uart::txdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 
 	if(READ_BIT(_instance->CR3, USART_CR3_DMAT)){
-		_txdma->stop_session();
+		_txdmac->stop_session();
 
 		CLEAR_BIT(_instance->CR3, USART_CR3_DMAT);
 	}
@@ -681,14 +692,14 @@ err_t uart::txdma_stop(void){
 	return ret;
 }
 
-err_t uart::rxdma_stop(void){
+err_t uart::rxdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 
 	if(READ_BIT(_instance->CR3, USART_CR3_DMAR)){
-		_rxdma->stop_session();
+		_rxdmac->stop_session();
 
 		CLEAR_BIT(_instance->CR3, USART_CR3_DMAR);
 	}
@@ -696,33 +707,31 @@ err_t uart::rxdma_stop(void){
 	return ret;
 }
 
-void uart::txdma_event_handler(dmac_event_t event, void *param){
+void uart::txdmac_event_handler(dmac_event_t event, void *param){
 	if(event == DMAC_EVENT_TRANFER_COMPLETE){
-		dmac_config_t *dma_conf = _txdma->get_config();
-		if(dma_conf->mode != DMAC_MODE_CIRCULAR) txdma_stop();
+		if(_txdmac_conf->mode != DMAC_MODE_CIRCULAR) txdmac_stop();
 		event_handle(UART_EVENT_TRANSMIT_COMPLETE);
-		if(dma_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_txmutex, NULL);
+		if(_txdmac_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_txmutex, NULL);
 	}
 	if(event == DMAC_EVENT_TRANFER_ERROR){
-		txdma_stop();
+		txdmac_stop();
 		event_handle(UART_EVENT_ERROR);
 		xSemaphoreGiveFromISR(_txmutex, NULL);
 	}
 }
 
-void uart::rxdma_event_handler(dmac_event_t event, void *param){
+void uart::rxdmac_event_handler(dmac_event_t event, void *param){
 	if(event == DMAC_EVENT_TRANFER_COMPLETE){
-		dmac_config_t *dma_conf = _rxdma->get_config();
 		rxinfo.count = rxinfo.length;
 
-		if(dma_conf->mode != DMAC_MODE_CIRCULAR) rxdma_stop();
+		if(_rxdmac_conf->mode != DMAC_MODE_CIRCULAR) rxdmac_stop();
 		event_handle(UART_EVENT_RECEIVE_COMPLETE);
-		if(dma_conf->mode == DMAC_MODE_CIRCULAR) reload_rxbuffer();
-		if(dma_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_rxmutex, NULL);
+		if(_rxdmac_conf->mode == DMAC_MODE_CIRCULAR) reload_rxbuffer();
+		if(_rxdmac_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_rxmutex, NULL);
 	}
 	if(event == DMAC_EVENT_TRANFER_ERROR){
 		if(_instance->CR1 & USART_CR1_IDLEIE) _instance->CR1 &=~ USART_CR1_IDLEIE;
-		rxdma_stop();
+		rxdmac_stop();
 		event_handle(UART_EVENT_ERROR);
 		release_rxbuffer();
 		xSemaphoreGiveFromISR(_rxmutex, NULL);
@@ -779,11 +788,11 @@ void uart::abort_all_it(void){
 	abort_receive_it();
 }
 
-err_t uart::abort_transmit_dma(void){
+err_t uart::abort_transmit_dmac(void){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_txmutex, NULL)) : (err = xSemaphoreTake(_txmutex, 1));
@@ -795,7 +804,7 @@ err_t uart::abort_transmit_dma(void){
 		CLEAR_BIT(_instance->CR3, USART_CR3_DMAT);
 		CLEAR_BIT(_instance->SR, USART_SR_TC);
 
-		_txdma->stop_session();
+		_txdmac->stop_session();
 
 		(in_it == pdTRUE)? xSemaphoreGiveFromISR(_txmutex, NULL) : xSemaphoreGive(_txmutex);
 	}
@@ -803,11 +812,11 @@ err_t uart::abort_transmit_dma(void){
 	return ret;
 }
 
-err_t uart::abort_receive_dma(void){
+err_t uart::abort_receive_dmac(void){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, _TAG, "UART DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_rxmutex, NULL)) : (err = xSemaphoreTake(_rxmutex, 1));
@@ -819,7 +828,7 @@ err_t uart::abort_receive_dma(void){
 		tmp = READ_REG(_instance->SR);
 		(void)tmp;
 
-		_rxdma->stop_session();
+		_rxdmac->stop_session();
 
 		if(_reception_mode == UART_RECEPTION_UNTIL_IDLE) {
 			CLEAR_BIT(_instance->CR1, USART_CR1_IDLEIE);
@@ -834,13 +843,13 @@ err_t uart::abort_receive_dma(void){
 	return ret;
 }
 
-err_t uart::abort_all_dma(void){
+err_t uart::abort_all_dmac(void){
 	err_t ret;
 
-	ret = abort_transmit_dma();
+	ret = abort_transmit_dmac();
 	IS_ERROR(ret)
 		UART_DBG("Fail to abort UART transmit DMA");
-	ret = abort_receive_dma();
+	ret = abort_receive_dmac();
 	IS_ERROR(ret)
 		UART_DBG("Fail to abort UART receive DMA");
 
@@ -942,9 +951,9 @@ static void UART_IDLE_IRQHandler(uart_t puart){
 		uart->CR1 &=~ (USART_CR1_IDLEIE | USART_CR1_RXNEIE);
 #if PERIPHERAL_DMAC_AVAILABLE
 		if(CR3Reg & USART_CR3_DMAR){
-			dmac_t rxdma = puart->get_rxdma();
+			dmac_t rxdma = puart->get_rxdmac();
 			puart->rxinfo.count = puart->rxinfo.length - rxdma->get_transfer_counter();
-			if(rxdma->get_config()->mode != DMAC_MODE_CIRCULAR) puart->rxdma_stop();
+			if(rxdma->get_config()->mode != DMAC_MODE_CIRCULAR) puart->rxdmac_stop();
 		}
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 		if(!(CR1Reg & (USART_CR1_TXEIE | USART_CR1_TCIE))){

@@ -8,7 +8,7 @@
 #ifndef STATUS_H_
 #define STATUS_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #include "stdint.h"
 #include "stdio.h"

@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_SYSINFO_H_
 #define PERIPHERALS_SYSINFO_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #include "stdio.h"
 

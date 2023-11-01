@@ -8,7 +8,7 @@
 #ifndef LOGCONFIG_INIT_H_
 #define LOGCONFIG_INIT_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #include "stdio.h"
 #include "string.h"

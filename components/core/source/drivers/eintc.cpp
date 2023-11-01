@@ -32,7 +32,7 @@ static const char *TAG = "EINTC";
 #endif /* STM32F4 */
 #define EINTC EXTI
 
-static std::function<void(void *)> _event_handler[16] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+static eintc_event_handler_f _event_handler[16] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 static void *_event_parameter[16] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 
@@ -110,7 +110,7 @@ void eintc_line_deinitialize(GPIO_TypeDef *port, uint16_t pin){
 	__NVIC_DisableIRQ(IRQn);
 }
 
-void eintc_line_register_event_handler(uint16_t pin, std::function<void(void *)> event_handler_function, void *param){
+void eintc_line_register_event_handler(uint16_t pin, eintc_event_handler_f event_handler_function, void *param){
 	_event_handler[pin] = event_handler_function;
 	_event_parameter[pin] = param;
 }

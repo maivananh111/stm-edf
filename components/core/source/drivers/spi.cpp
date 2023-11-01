@@ -248,10 +248,16 @@ err_t spi::initialize(spi_config_t *conf){
 void spi::deinitilize(void){
     hardware_deinitialize();
 
-#if PERIPHERAL_DMA_AVAILABLE
-	_txdma = NULL;
-	_rxdma = NULL;
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+	if(_txdmac != NULL){
+		_txdmac->deinitialize();
+		_txdmac = NULL;
+	}
+	if(_rxdmac != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac = NULL;
+	}
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 	CLEAR_REG(_instance->CR1);
 	CLEAR_REG(_instance->CR2);
@@ -289,49 +295,51 @@ void spi::event_handle(spi_event_t event){
 
 
 
-#if PERIPHERAL_DMA_AVAILABLE
-void spi::install_dma(dma_t txdma, dma_config_t *txdma_conf, dma_t rxdma, dma_config_t *rxdma_conf){
-	_txdma = txdma;
-	_rxdma = rxdma;
-	_txdma_conf = txdma_conf;
-	_rxdma_conf = rxdma_conf;
+#if PERIPHERAL_DMAC_AVAILABLE
+void spi::link_dmac(dmac_t txdmac, dmac_t rxdmac){
+	_txdmac = txdmac;
+	_rxdmac = rxdmac;
 
-	if(_txdma_conf != NULL){
-		_txdma_conf->direction = DMA_MEM_TO_PERIPH;
-		_txdma_conf->datasize  = (dma_datasize_t)_conf->datasize;
-		_txdma_conf->interruptoption = DMA_TRANSFER_COMPLETE_INTERRUPT;
+	if(_txdmac_conf != NULL) free(_txdmac_conf);
+	if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+	_txdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	_rxdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	if(_txdmac_conf != NULL){
+		_txdmac_conf->direction = DMAC_MEM_TO_PERIPH;
+		_txdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_txdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_txdma->initialize(_txdma_conf);
-		_txdma->register_event_handler(FUNC_BIND(&spi::txdma_event_handler, this, FUNC_PARAM(1), FUNC_PARAM(2)), NULL);
+		_txdmac->initialize(_txdmac_conf);
+		_txdmac->register_event_handler(FUNC_BIND(&spi::txdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma_conf->direction = DMA_PERIPH_TO_MEM;
-		_rxdma_conf->datasize  = (dma_datasize_t)_conf->datasize;
-		_rxdma_conf->interruptoption = DMA_TRANSFER_COMPLETE_INTERRUPT;
+	if(_rxdmac_conf != NULL){
+		_rxdmac_conf->direction = DMAC_PERIPH_TO_MEM;
+		_rxdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_rxdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_rxdma->initialize(_rxdma_conf);
-		_rxdma->register_event_handler(FUNC_BIND(&spi::rxdma_event_handler, this, FUNC_PARAM(1), FUNC_PARAM(2)), NULL);
+		_rxdmac->initialize(_rxdmac_conf);
+		_rxdmac->register_event_handler(FUNC_BIND(&spi::rxdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
 }
 
-void spi::uninstall_dma(void){
-
-	if(_txdma_conf != NULL){
-		_txdma->deinitialize();
-		_txdma->unregister_event_handler();
+void spi::unlink_dmac(void){
+	if(_txdmac_conf != NULL){
+		_txdmac->deinitialize();
+		_txdmac->unregister_event_handler();
+		_txdmac = NULL;
+		if(_txdmac_conf != NULL) free(_txdmac_conf);
+		_txdmac_conf = NULL;
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma->deinitialize();
-		_rxdma->unregister_event_handler();
+	if(_rxdmac_conf != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac->unregister_event_handler();
+		_rxdmac = NULL;
+		if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+		_rxdmac_conf = NULL;
 	}
-	_txdma = NULL;
-	_rxdma = NULL;
-
-	_txdma_conf = NULL;
-	_rxdma_conf = NULL;
 }
 
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
@@ -347,15 +355,15 @@ spi_config_t *spi::get_config(void){
 IRQn_Type spi::get_irq(void){
 	return _IRQn;
 }
-#if PERIPHERAL_DMA_AVAILABLE
-dma_t spi::get_txdma(void){
-	return _txdma;
+#if PERIPHERAL_DMAC_AVAILABLE
+dmac_t spi::get_txdmac(void){
+	return _txdmac;
 }
 
-dma_t spi::get_rxdma(void){
-	return _rxdma;
+dmac_t spi::get_rxdmac(void){
+	return _rxdmac;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 SemaphoreHandle_t spi::get_txmutex(void){
 	return _txmutex;
 }
@@ -687,14 +695,14 @@ err_t spi::transmit_receive_it(uint32_t ptxdata, uint32_t prxdata, uint32_t data
 
 
 
-#if PERIPHERAL_DMA_AVAILABLE
-err_t spi::transmit_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
+#if PERIPHERAL_DMAC_AVAILABLE
+err_t spi::transmit_dmac(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
 	ASSERT_THEN_RETURN_VALUE((_conf->controller == SPI_HALFDUPLEX_SLAVE),
 				ERROR_SET(ret, E_NOT_ALLOWED), ret, LOG_ERROR, TAG, "SPI halfduplex slave mode can't transmit data");
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_txmutex, NULL)) : (err = xSemaphoreTake(_txmutex, timeout));
@@ -708,16 +716,16 @@ err_t spi::transmit_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 			SET_BIT(_instance->CR1, SPI_CR1_BIDIOE);
 		CLEAR_BIT(_instance->CR2, SPI_CR2_TXDMAEN);
 
-		struct dma_session_config_t xfer_conf = {
+		struct dmac_session_config_t xfer_conf = {
 			.psource = (uint32_t)txinfo.buffer,
 			.pdest = (uint32_t)&_instance->DR,
 			.xfersize = txinfo.length,
 		};
-		ret = _txdma->config_start_session(xfer_conf);
+		ret = _txdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret) {
 			ERROR_CAPTURE(ret);
 			SPI_DBG("SPI DMA error");
-			_txdma->stop_session();
+			_txdmac->stop_session();
 			event_handle(SPI_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_txmutex, NULL) : xSemaphoreGive(_txmutex);
 			return ret;
@@ -734,13 +742,13 @@ err_t spi::transmit_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 	return ret;
 }
 
-err_t spi::receive_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
+err_t spi::receive_dmac(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
 	ASSERT_THEN_RETURN_VALUE((_conf->controller == SPI_HALFDUPLEX_MASTER),
 				ERROR_SET(ret, E_NOT_ALLOWED), ret, LOG_ERROR, TAG, "SPI halfduplex slave mode can't transmit data");
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_rxmutex, NULL)) : (err = xSemaphoreTake(_rxmutex, timeout));
@@ -753,16 +761,16 @@ err_t spi::receive_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 		if(_conf->controller == SPI_HALFDUPLEX_MASTER)
 			SET_BIT(_instance->CR1, SPI_CR1_BIDIOE);
 		CLEAR_BIT(_instance->CR2, SPI_CR2_RXDMAEN);
-		struct dma_session_config_t xfer_conf = {
+		struct dmac_session_config_t xfer_conf = {
 			.psource = (uint32_t)&_instance->DR,
 			.pdest = (uint32_t)rxinfo.buffer,
 			.xfersize = rxinfo.length,
 		};
-		ret = _rxdma->config_start_session(xfer_conf);
+		ret = _rxdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret) {
 			ERROR_CAPTURE(ret);
 			SPI_DBG("SPI DMA error");
-			_rxdma->stop_session();
+			_rxdmac->stop_session();
 			event_handle(SPI_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_rxmutex, NULL) : xSemaphoreGive(_rxmutex);
 			return ret;
@@ -779,13 +787,13 @@ err_t spi::receive_dma(uint32_t pdata, uint32_t data_size, uint16_t timeout){
 	return ret;
 }
 
-err_t spi::transmit_receive_dma(uint32_t ptxdata, uint32_t prxdata, uint32_t data_size, uint16_t timeout){
+err_t spi::transmit_receive_dmac(uint32_t ptxdata, uint32_t prxdata, uint32_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
 	ASSERT_THEN_RETURN_VALUE((_conf->controller == SPI_HALFDUPLEX_MASTER || _conf->controller == SPI_HALFDUPLEX_SLAVE),
 				ERROR_SET(ret, E_NOT_ALLOWED), ret, LOG_ERROR, TAG, "SPI mode halfduplex master/slave mode can't transmit and receive data");
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL || _rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL || _rxdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	(in_it == pdTRUE)?
@@ -803,31 +811,31 @@ err_t spi::transmit_receive_dma(uint32_t ptxdata, uint32_t prxdata, uint32_t dat
 		CLEAR_BIT(_instance->CR1, SPI_CR1_SPE);
 		CLEAR_BIT(_instance->CR2, SPI_CR2_RXDMAEN | SPI_CR2_TXDMAEN);
 
-		struct dma_session_config_t rxfer_conf = {
+		struct dmac_session_config_t rxfer_conf = {
 			.psource = (uint32_t)&_instance->DR,
 			.pdest = (uint32_t)rxinfo.buffer,
 			.xfersize = rxinfo.length,
 		};
-		ret = _rxdma->config_start_session(rxfer_conf);
+		ret = _rxdmac->config_start_session(rxfer_conf);
 		IS_ERROR(ret) {
 			ERROR_CAPTURE(ret);
 			SPI_DBG("SPI DMA error");
-			_rxdma->stop_session();
+			_rxdmac->stop_session();
 			event_handle(SPI_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_rxmutex, NULL) : xSemaphoreGive(_rxmutex);
 			return ret;
 		}
 
-		struct dma_session_config_t txfer_conf = {
+		struct dmac_session_config_t txfer_conf = {
 			.psource = (uint32_t)rxinfo.buffer,
 			.pdest = (uint32_t)&_instance->DR,
 			.xfersize = rxinfo.length,
 		};
-		ret = _txdma->config_start_session(txfer_conf);
+		ret = _txdmac->config_start_session(txfer_conf);
 		IS_ERROR(ret) {
 			ERROR_CAPTURE(ret);
 			SPI_DBG("SPI DMA error");
-			_txdma->stop_session();
+			_txdmac->stop_session();
 			event_handle(SPI_EVENT_ERROR);
 			(in_it == pdTRUE)? xSemaphoreGiveFromISR(_txmutex, NULL) : xSemaphoreGive(_txmutex);
 			return ret;
@@ -843,82 +851,80 @@ err_t spi::transmit_receive_dma(uint32_t ptxdata, uint32_t prxdata, uint32_t dat
 
 	return ret;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
 
-#if PERIPHERAL_DMA_AVAILABLE
-err_t spi::txdma_stop(void){
+#if PERIPHERAL_DMAC_AVAILABLE
+err_t spi::txdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	if(READ_BIT(_instance->CR2, SPI_CR2_TXDMAEN)) {
 		CLEAR_BIT(_instance->CR2, SPI_CR2_TXDMAEN | SPI_CR2_ERRIE);
 		CLEAR_BIT(_instance->CR1, SPI_CR1_SPE);
 
-		_txdma->stop_session();
+		_txdmac->stop_session();
 	}
 	return ret;
 }
 
-err_t spi::rxdma_stop(void){
+err_t spi::rxdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	if(READ_BIT(_instance->CR2, SPI_CR2_RXDMAEN)) {
 		CLEAR_BIT(_instance->CR2, SPI_CR2_RXDMAEN | SPI_CR2_ERRIE);
 		CLEAR_BIT(_instance->CR1, SPI_CR1_SPE);
 
-		_rxdma->stop_session();
+		_rxdmac->stop_session();
 	}
 
 	return ret;
 }
 
-void spi::txdma_event_handler(dma_event_t event, void *param){
-	if(event == DMA_EVENT_TRANFER_COMPLETE){
+void spi::txdmac_event_handler(dmac_event_t event, void *param){
+	if(event == DMAC_EVENT_TRANFER_COMPLETE){
 		volatile uint32_t tmp = _instance->SR;
 		tmp = _instance->DR;
 		(void)tmp;
 
-		dma_config_t *dma_conf = _txdma->get_config();
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) txdma_stop();
+		if(_txdmac_conf->mode != DMAC_MODE_CIRCULAR) txdmac_stop();
 		event_handle(SPI_EVENT_TRANSMIT_COMPLETE);
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) xSemaphoreGiveFromISR(_txmutex, NULL);
+		if(_txdmac_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_txmutex, NULL);
 	}
-	if(event == DMA_EVENT_TRANFER_ERROR){
-		txdma_stop();
+	if(event == DMAC_EVENT_TRANFER_ERROR){
+		txdmac_stop();
 		event_handle(SPI_EVENT_ERROR);
 		xSemaphoreGiveFromISR(_txmutex, NULL);
 	}
 }
 
-void spi::rxdma_event_handler(dma_event_t event, void *param){
-	if(event == DMA_EVENT_TRANFER_COMPLETE){
+void spi::rxdmac_event_handler(dmac_event_t event, void *param){
+	if(event == DMAC_EVENT_TRANFER_COMPLETE){
 		volatile uint32_t tmp = _instance->SR;
 		tmp = _instance->DR;
 		(void)tmp;
 
-		dma_config_t *dma_conf = _rxdma->get_config();
 		rxinfo.count = rxinfo.length;
 
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) rxdma_stop();
+		if(_rxdmac_conf->mode != DMAC_MODE_CIRCULAR) rxdmac_stop();
 		event_handle(SPI_EVENT_RECEIVE_COMPLETE);
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) xSemaphoreGiveFromISR(_rxmutex, NULL);
+		if(_rxdmac_conf->mode != DMAC_MODE_CIRCULAR) xSemaphoreGiveFromISR(_rxmutex, NULL);
 	}
-	if(event == DMA_EVENT_TRANFER_ERROR){
-		rxdma_stop();
+	if(event == DMAC_EVENT_TRANFER_ERROR){
+		rxdmac_stop();
 		event_handle(SPI_EVENT_ERROR);
 		xSemaphoreGiveFromISR(_rxmutex, NULL);
 	}
 
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 err_t spi::abort_transmit_it(void){
 	err_t ret;
@@ -991,14 +997,14 @@ err_t spi::abort_all_it(void){
 	return ret;
 }
 
-#if PERIPHERAL_DMA_AVAILABLE
-err_t spi::abort_transmit_dma(void){
+#if PERIPHERAL_DMAC_AVAILABLE
+err_t spi::abort_transmit_dmac(void){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
 	ASSERT_THEN_RETURN_VALUE((_conf->controller == SPI_HALFDUPLEX_SLAVE),
 				ERROR_SET(ret, E_NOT_ALLOWED), ret, LOG_ERROR, TAG, "SPI halfduplex slave mode can't transmit data");
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_txmutex, NULL)) : (err = xSemaphoreTake(_txmutex, 1));
@@ -1010,7 +1016,7 @@ err_t spi::abort_transmit_dma(void){
 		CLEAR_BIT(_instance->CR2, SPI_CR2_TXDMAEN | SPI_CR2_ERRIE);
 		CLEAR_BIT(_instance->CR1, SPI_CR1_SPE);
 
-		ret = txdma_stop();
+		ret = txdmac_stop();
 
 		(in_it == pdTRUE)? xSemaphoreGiveFromISR(_txmutex, NULL) : xSemaphoreGive(_txmutex);
 	}
@@ -1018,13 +1024,13 @@ err_t spi::abort_transmit_dma(void){
 	return ret;
 }
 
-err_t spi::abort_receive_dma(void){
+err_t spi::abort_receive_dmac(void){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
 	ASSERT_THEN_RETURN_VALUE((_conf->controller == SPI_HALFDUPLEX_MASTER),
 				ERROR_SET(ret, E_NOT_ALLOWED), ret, LOG_ERROR, TAG, "SPI halfduplex slave mode can't transmit data");
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "SPI DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_rxmutex, NULL)) : (err = xSemaphoreTake(_rxmutex, 1));
@@ -1036,7 +1042,7 @@ err_t spi::abort_receive_dma(void){
 		CLEAR_BIT(_instance->CR2, SPI_CR2_RXDMAEN | SPI_CR2_ERRIE);
 		CLEAR_BIT(_instance->CR1, SPI_CR1_SPE);
 
-		ret = rxdma_stop();
+		ret = rxdmac_stop();
 
 		(in_it == pdTRUE)? xSemaphoreGiveFromISR(_rxmutex, NULL) : xSemaphoreGive(_rxmutex);
 	}
@@ -1044,16 +1050,16 @@ err_t spi::abort_receive_dma(void){
 	return ret;
 }
 
-err_t spi::abort_all_dma(void){
+err_t spi::abort_all_dmac(void){
 	err_t ret;
 
-	ret = abort_transmit_dma();
+	ret = abort_transmit_dmac();
 	IS_ERROR(ret) {
 		ERROR_CAPTURE(ret);
 		SPI_DBG("SPI abort error");
 		return ret;
 	}
-	ret = abort_receive_dma();
+	ret = abort_receive_dmac();
 	IS_ERROR(ret) {
 		ERROR_CAPTURE(ret);
 		SPI_DBG("SPI abort error");
@@ -1062,7 +1068,7 @@ err_t spi::abort_all_dma(void){
 
 	return ret;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
@@ -1261,9 +1267,6 @@ static void SPICommon_IRQHandler(spi_t pspi){
 }
 
 
-#if PERIPHERAL_DMA_AVAILABLE
-
-#endif /* PERIPHERAL_DMA_AVAILABLE */
 
 
 

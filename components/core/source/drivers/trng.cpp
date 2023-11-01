@@ -11,7 +11,7 @@
 #include "drivers/sysinfo.h"
 
 
-#define TRNG_TIMEOUT 2U
+#define TRNG_TIMEOUT CONFIG_PERIPH_TRNG_DEFAULT_OPERATION_TIMEOUT
 
 
 static uint32_t _seed = 0;

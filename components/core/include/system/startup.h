@@ -8,7 +8,7 @@
 #ifndef STARTUP_H_
 #define STARTUP_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 
 #include "freertos/FreeRTOS.h"

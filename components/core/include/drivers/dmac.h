@@ -9,7 +9,7 @@
 #define PERIPHERALS_DMAC_H_
 
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_DMAC_EN && (defined(DMA1) || defined(DMA2) || defined(DMA3))
 
@@ -148,7 +148,7 @@ struct dmac_session_config_t{
 	uint32_t      timeout = CONFIG_PERIPH_DMAC_DEFAULT_OPERATION_TIMEOUT;
 };
 
-typedef void(*dmac_evcb_t)(dmac_event_t, void *);
+using dmac_event_handler_f = std::function<void(dmac_event_t event, void *param)>;
 
 class dmac{
 	public:
@@ -158,7 +158,7 @@ class dmac{
 		err_t initialize(dmac_config_t *conf);
 		void deinitialize(void);
 	/** Event handler */
-		void register_event_handler(std::function<void(dmac_event_t event, void *param)> event_handler_function, void *event_parameter = NULL);
+		void register_event_handler(dmac_event_handler_f event_handler_function, void *event_parameter = NULL);
 		void unregister_event_handler(void);
 		void event_handle(dmac_event_t event);
 	/** Get parameter */
@@ -166,6 +166,9 @@ class dmac{
 		dmac_config_t *get_config(void);
 		uint16_t get_transfer_counter(void);
 		SemaphoreHandle_t get_mutex(void);
+	/** Set attribute */
+		void set_direction(dmac_direction_t direction = DMAC_MEM_TO_PERIPH);
+		void set_datasize(dmac_datasize_t datasize = DMAC_DATASIZE_8BIT);
 	/** Configure and start transfer session */
 		err_t config_start_session(struct dmac_session_config_t conf);
 	/** Start/stop */
@@ -178,7 +181,7 @@ class dmac{
 		dmac_config_t *_conf;
 		IRQn_Type _IRQn;
 
-		std::function<void(dmac_event_t, void *)> _event_handler;
+		dmac_event_handler_f _event_handler = NULL;
 		void *_event_parameter;
 
 		SemaphoreHandle_t _mutex;

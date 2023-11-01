@@ -9,7 +9,7 @@
 #define PERIPHERALS_I2C_H_
 
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_I2C_EN && (defined(I2C1) || defined(I2C2) || defined(I2C3) || defined(I2C4) || defined(I2C5) || defined(I2C6))
 #define PERIPHERAL_I2C_AVAILABLE 1
@@ -79,10 +79,7 @@ struct i2c_xfer_t{
 };
 
 
-typedef void (*i2c_evcb_t)(i2c_event_t, void *);
-
-class i2c;
-typedef i2c* i2c_t;
+using i2c_event_handler_f = std::function<void(i2c_event_t, void *)>;
 
 class i2c{
 	public:
@@ -92,23 +89,23 @@ class i2c{
 		err_t initialize(i2c_config_t *conf);
 		void deinitialize(void);
 	/** Event handle */
-		void register_event_handler(i2c_evcb_t event_handler_function, void *param = NULL);
+		void register_event_handler(i2c_event_handler_f event_handler_function, void *param = NULL);
 		void unregister_event_handler(void);
 		void event_handle(i2c_event_t event);
-	/** DMA declare */
+	/** DMAC link */
 #if PERIPHERAL_DMAC_AVAILABLE
-		void install_dma(dmac_t txdma = NULL, dmac_config_t *txdma_conf = NULL, dmac_t rxdma = NULL, dmac_config_t *rxdma_conf = NULL);
-		void uninstall_dma(void);
+		void link_dmac(dmac_t txdmac = NULL, dmac_t rxdmac = NULL);
+		void unlink_dmac(void);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 	/** Get parameter */
 		I2C_TypeDef *get_instance(void);
 		i2c_config_t *get_config(void);
 		IRQn_Type get_ev_irq(void);
 		IRQn_Type get_er_irq(void);
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t get_txdma(void);
-		dma_t get_rxdma(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t get_txdmac(void);
+		dmac_t get_rxdmac(void);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 		SemaphoreHandle_t get_mutex(void); /** I2C is half duplex communication. */
 		i2c_action_t get_current_action(void);
 		uint8_t get_address(void);
@@ -123,24 +120,24 @@ class i2c{
 		err_t transmit_it(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
 		err_t receive_it(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
 
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t transmit_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
-		err_t receive_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
-
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t transmit_dmac(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
+		err_t receive_dmac(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_I2C_DEFAULT_OPERATION_TIMEOUT);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		void abort_it(void);
-		void abort_dma(void);
-
+		void abort_dmac(void);
 
 		err_t start(void);
 		void stop(void);
 		void send_address(uint8_t address, i2c_action_t action);
 
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t txdma_stop(void);
-		err_t rxdma_stop(void);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t txdmac_stop(void);
+		err_t rxdmac_stop(void);
+		void txdmac_event_handler(dmac_event_t event, void *param);
+		void rxdmac_event_handler(dmac_event_t event, void *param);
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 		void setup_reception(void);
 
 
@@ -157,15 +154,17 @@ class i2c{
 		SemaphoreHandle_t _mutex;
 
 #if PERIPHERAL_DMAC_AVAILABLE
-		dmac_t _txdma = NULL, _rxdma = NULL;
-		dmac_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
+		dmac_t _txdmac = NULL, _rxdmac = NULL;
+		dmac_config_t *_txdmac_conf = NULL, *_rxdmac_conf = NULL;
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 		void *_event_parameter = NULL;
-		i2c_evcb_t _event_handler = NULL;
+		i2c_event_handler_f _event_handler = NULL;
 
 		uint8_t _current_dev_address;
 		i2c_action_t _action = I2C_WRITE;
 
+		err_t hardware_initialize(void);
+		void hardware_deinitialize(void);
 
 		void ACK_failure_handle(void);
 		void clear_ADDR_flag(void);
@@ -173,6 +172,7 @@ class i2c{
 		err_t wait_addr_flag(void);
 };
 
+typedef i2c* i2c_t;
 
 i2c_t i2c_str_decode(char *str);
 

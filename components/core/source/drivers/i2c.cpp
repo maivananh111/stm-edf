@@ -45,10 +45,6 @@ static void I2C_Slave_RX_IRQHandler(i2c_t pi2c);
 static void I2CCommonEvent_IRQHandler(i2c_t pi2c);
 static void I2CCommonError_IRQHandler(i2c_t pi2c);
 
-#if PERIPHERAL_DMA_AVAILABLE
-static void i2c_txdma_event_handler(dma_event_t event, void *param);
-static void i2c_rxdma_event_handler(dma_event_t event, void *param);
-#endif /* PERIPHERAL_DMA_AVAILABLE */
 
 
 
@@ -85,10 +81,9 @@ i2c::i2c(I2C_TypeDef *i2c){
 	_instance = i2c;
 }
 
-err_t i2c::initialize(i2c_config_t *conf){
+err_t i2c::hardware_initialize(void){
 	err_t ret;
 
-	_conf = conf;
 #if defined(I2C1)
 	if(_instance == I2C1)      SET_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C1EN);
 #endif /* defined(I2C1) */
@@ -100,17 +95,10 @@ err_t i2c::initialize(i2c_config_t *conf){
 #endif /* defined(I2C3) */
 
 	if(_conf->sclpin != NULL)
-		if(gpio_str_decode(_conf->sclpin, &_sclpin) == false) goto error;
+		if(gpio_str_decode(_conf->sclpin, &_sclpin) == false) goto error_handler;
 	if(_conf->sdapin != NULL)
-		if(gpio_str_decode(_conf->sdapin, &_sdapin) == false) goto error;
-	goto pass;
-	error:
-	ERROR_SET(ret, E_INVALID);
-	I2C_DBG("I2C pin invalid");
-	system_reset();
-	return ret;
+		if(gpio_str_decode(_conf->sdapin, &_sdapin) == false) goto error_handler;
 
-	pass:
 	gpio_set_direction(_sclpin.port, _sclpin.pinnum, GPIO_FUNCTION);
 	gpio_set_direction(_sdapin.port, _sdapin.pinnum, GPIO_FUNCTION);
 	gpio_set_type(_sclpin.port, _sclpin.pinnum, GPIO_OUTPUT_OPENDRAIN);
@@ -121,6 +109,41 @@ err_t i2c::initialize(i2c_config_t *conf){
 #endif
 	gpio_set_pullup(_sclpin.port, _sclpin.pinnum);
 	gpio_set_pullup(_sdapin.port, _sdapin.pinnum);
+
+	return ret;
+
+error_handler:
+	ERROR_SET(ret, E_INVALID);
+	I2C_DBG("I2C pin invalid");
+	system_reset();
+
+	return ret;
+}
+
+void i2c::hardware_deinitialize(void){
+#if defined(I2C1)
+	if(_instance == I2C1)      CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C1EN);
+#endif /* defined(I2C1) */
+#if defined(I2C2)
+	else if(_instance == I2C2) CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C2EN);
+#endif /* defined(I2C2) */
+#if defined(I2C3)
+	else if(_instance == I2C3) CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C3EN);
+#endif /* defined(I2C3) */
+
+	gpio_deinit(_sclpin.port, _sclpin.pinnum);
+	gpio_deinit(_sdapin.port, _sdapin.pinnum);
+}
+
+err_t i2c::initialize(i2c_config_t *conf){
+	err_t ret;
+
+	_conf = conf;
+	ret = hardware_initialize();
+	IS_ERROR(ret){
+		ERROR_CAPTURE(ret);
+		return ret;
+	}
 
 	CLEAR_REG(_instance->CR1);
 	CLEAR_BIT(_instance->CR1, I2C_CR1_PE);
@@ -202,22 +225,18 @@ err_t i2c::initialize(i2c_config_t *conf){
 }
 
 void i2c::deinitialize(void){
-#if defined(I2C1)
-	if(_instance == I2C1)      CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C1EN);
-#endif /* defined(I2C1) */
-#if defined(I2C2)
-	else if(_instance == I2C2) CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C2EN);
-#endif /* defined(I2C2) */
-#if defined(I2C3)
-	else if(_instance == I2C3) CLEAR_BIT(RCC->APB1ENR, RCC_APB1ENR_I2C3EN);
-#endif /* defined(I2C3) */
+	hardware_deinitialize();
 
-#if PERIPHERAL_DMA_AVAILABLE
-	_txdma = NULL;
-	_rxdma = NULL;
-#endif /* PERIPHERAL_DMA_AVAILABLE */
-	gpio_deinit(_sclpin.port, _sclpin.pinnum);
-	gpio_deinit(_sdapin.port, _sdapin.pinnum);
+#if PERIPHERAL_DMAC_AVAILABLE
+	if(_txdmac != NULL){
+		_txdmac->deinitialize();
+		_txdmac = NULL;
+	}
+	if(_rxdmac != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac = NULL;
+	}
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 	CLEAR_REG(_instance->CR1);
 	CLEAR_REG(_instance->CR2);
@@ -241,7 +260,7 @@ void i2c::deinitialize(void){
 
 
 
-void i2c::register_event_handler(i2c_evcb_t event_handler_function, void *param){
+void i2c::register_event_handler(i2c_event_handler_f event_handler_function, void *param){
 	_event_handler = event_handler_function;
 	_event_parameter = param;
 }
@@ -258,46 +277,50 @@ void i2c::event_handle(i2c_event_t event){
 
 
 
-#if PERIPHERAL_DMA_AVAILABLE
-void i2c::install_dma(dma_t txdma, dma_config_t *txdma_conf, dma_t rxdma, dma_config_t *rxdma_conf){
-	_txdma = txdma;
-	_rxdma = rxdma;
+#if PERIPHERAL_DMAC_AVAILABLE
+void i2c::link_dmac(dmac_t txdmac, dmac_t rxdmac){
+	_txdmac = txdmac;
+	_rxdmac = rxdmac;
 
-	_txdma_conf = txdma_conf;
-	_rxdma_conf = rxdma_conf;
-	if(_txdma_conf != NULL){
-		_txdma_conf->direction = DMA_MEM_TO_PERIPH;
-		_txdma_conf->datasize  = DMA_DATASIZE_8BIT;
-		_txdma_conf->interruptoption = DMA_TRANSFER_COMPLETE_INTERRUPT;
+	if(_txdmac_conf != NULL) free(_txdmac_conf);
+	if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+	_txdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	_rxdmac_conf = (dmac_config_t *)malloc(sizeof(dmac_config_t));
+	if(_txdmac_conf != NULL){
+		_txdmac_conf->direction = DMAC_MEM_TO_PERIPH;
+		_txdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_txdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_txdma->initialize(_txdma_conf);
-		_txdma->register_event_handler(i2c_txdma_event_handler, this);
+		_txdmac->initialize(_txdmac_conf);
+		_txdmac->register_event_handler(FUNC_BIND(&i2c::txdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma_conf->direction = DMA_PERIPH_TO_MEM;
-		_rxdma_conf->datasize  = DMA_DATASIZE_8BIT;
-		_rxdma_conf->interruptoption = DMA_TRANSFER_COMPLETE_INTERRUPT;
+	if(_rxdmac_conf != NULL){
+		_rxdmac_conf->direction = DMAC_PERIPH_TO_MEM;
+		_rxdmac_conf->datasize  = DMAC_DATASIZE_8BIT;
+		_rxdmac_conf->interruptoption = DMAC_TRANSFER_COMPLETE_INTERRUPT;
 
-		_rxdma->initialize(_rxdma_conf);
-		_rxdma->register_event_handler(i2c_rxdma_event_handler, this);
+		_rxdmac->initialize(_rxdmac_conf);
+		_rxdmac->register_event_handler(FUNC_BIND(&i2c::rxdmac_event_handler, this, std::placeholders::_1, std::placeholders::_2), NULL);
 	}
 }
 
-void i2c::uninstall_dma(void){
-	if(_txdma_conf != NULL){
-		_txdma->deinitialize();
-		_txdma->unregister_event_handler();
+void i2c::unlink_dmac(void){
+	if(_txdmac_conf != NULL){
+		_txdmac->deinitialize();
+		_txdmac->unregister_event_handler();
+		_txdmac = NULL;
+		if(_txdmac_conf != NULL) free(_txdmac_conf);
+		_txdmac_conf = NULL;
 	}
-	if(_rxdma_conf != NULL){
-		_rxdma->deinitialize();
-		_rxdma->unregister_event_handler();
+	if(_rxdmac_conf != NULL){
+		_rxdmac->deinitialize();
+		_rxdmac->unregister_event_handler();
+		_rxdmac = NULL;
+		if(_rxdmac_conf != NULL) free(_rxdmac_conf);
+		_rxdmac_conf = NULL;
 	}
-	_txdma = NULL;
-	_rxdma = NULL;
-	_txdma_conf = NULL;
-	_rxdma_conf = NULL;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
@@ -316,16 +339,6 @@ IRQn_Type i2c::get_ev_irq(void){
 IRQn_Type i2c::get_er_irq(void){
 	return _erIRQn;
 }
-
-#if PERIPHERAL_DMA_AVAILABLE
-dma_t i2c::get_txdma(void){
-	return _txdma;
-}
-
-dma_t i2c::get_rxdma(void){
-	return _rxdma;
-}
-#endif /* PERIPHERAL_DMA_AVAILABLE */
 
 SemaphoreHandle_t i2c::get_mutex(void){
 	return _mutex;
@@ -845,12 +858,12 @@ err_t i2c::receive_it(uint8_t address, uint8_t *pdata, uint16_t data_size, uint1
 	return ret;
 }
 
-#if PERIPHERAL_DMA_AVAILABLE
-err_t i2c::transmit_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout){
+#if PERIPHERAL_DMAC_AVAILABLE
+err_t i2c::transmit_dmac(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "I2C DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_mutex, NULL)) : (err = xSemaphoreTake(_mutex, timeout));
@@ -870,12 +883,12 @@ err_t i2c::transmit_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uin
 			return ret;
 		}
 
-		struct dma_session_config_t xfer_conf = {
+		struct dmac_session_config_t xfer_conf = {
 			.psource = (uint32_t)txinfo.buffer,
 			.pdest = (uint32_t)&_instance->DR,
 			.xfersize = txinfo.length,
 		};
-		ret = _txdma->config_start_session(xfer_conf);
+		ret = _txdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret){
 			ERROR_CAPTURE(ret);
 			I2C_DBG("I2C DMA error");
@@ -901,11 +914,11 @@ err_t i2c::transmit_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uin
 	return ret;
 }
 
-err_t i2c::receive_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout){
+err_t i2c::receive_dmac(uint8_t address, uint8_t *pdata, uint16_t data_size, uint16_t timeout){
 	err_t ret;
 	BaseType_t err, in_it = xPortIsInsideInterrupt();
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 			ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "I2C DMA invalid");
 
 	(in_it == pdTRUE)? (err = xSemaphoreTakeFromISR(_mutex, NULL)) : (err = xSemaphoreTake(_mutex, timeout));
@@ -916,12 +929,12 @@ err_t i2c::receive_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint
 		_current_dev_address = address;
 		_action = I2C_READ;
 
-		struct dma_session_config_t xfer_conf = {
+		struct dmac_session_config_t xfer_conf = {
 			.psource = (uint32_t)&_instance->DR,
 			.pdest = (uint32_t)rxinfo.buffer,
 			.xfersize = rxinfo.length,
 		};
-		ret = _rxdma->config_start_session(xfer_conf);
+		ret = _rxdmac->config_start_session(xfer_conf);
 		IS_ERROR(ret){
 			ERROR_CAPTURE(ret);
 			I2C_DBG("I2C DMA error");
@@ -946,7 +959,7 @@ err_t i2c::receive_dma(uint8_t address, uint8_t *pdata, uint16_t data_size, uint
 
 	return ret;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
@@ -963,43 +976,43 @@ void i2c::abort_it(void){
 	xSemaphoreGiveFromISR(_mutex, NULL);
 }
 
-void i2c::abort_dma(void){
+void i2c::abort_dmac(void){
 
 }
 
-#if PERIPHERAL_DMA_AVAILABLE
-err_t i2c::txdma_stop(void){
+#if PERIPHERAL_DMAC_AVAILABLE
+err_t i2c::txdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_txdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_txdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "I2C DMA invalid");
 
 	if(READ_BIT(_instance->CR2, I2C_CR2_DMAEN)) {
 		CLEAR_BIT(_instance->CR2, I2C_CR2_ITEVTEN | I2C_CR2_ITERREN);
 		CLEAR_BIT(_instance->CR2, I2C_CR2_DMAEN);
 		CLEAR_BIT(_instance->CR1, I2C_CR1_ACK);
-		_txdma->stop_session();
+		_txdmac->stop_session();
 	}
 
 	return ret;
 }
 
-err_t i2c::rxdma_stop(void){
+err_t i2c::rxdmac_stop(void){
 	err_t ret;
 
-	ASSERT_THEN_RETURN_VALUE((_rxdma == NULL),
+	ASSERT_THEN_RETURN_VALUE((_rxdmac == NULL),
 				ERROR_SET(ret, E_NULL), ret, LOG_ERROR, TAG, "I2C DMA invalid");
 
 	if(READ_BIT(_instance->CR2, I2C_CR2_DMAEN)) {
 		CLEAR_BIT(_instance->CR2, I2C_CR2_ITEVTEN | I2C_CR2_ITERREN);
 		CLEAR_BIT(_instance->CR2, I2C_CR2_DMAEN);
 		CLEAR_BIT(_instance->CR1, I2C_CR1_ACK);
-		_rxdma->stop_session();
+		_rxdmac->stop_session();
 	}
 
 	return ret;
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 
 
@@ -1161,41 +1174,32 @@ static void I2CCommonError_IRQHandler(i2c_t pi2c){
 	pi2c->abort_it();
 }
 
-#if PERIPHERAL_DMA_AVAILABLE
-static void i2c_txdma_event_handler(dma_event_t event, void *param){
-	i2c_t pi2c = (i2c_t)param;
-	dma_t txdma = pi2c->get_txdma();
-
-	if(event == DMA_EVENT_TRANFER_COMPLETE){
-		dma_config_t *dma_conf = txdma->get_config();
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) pi2c->txdma_stop();
-
-		pi2c->event_handle(I2C_EVENT_TRANSMIT_COMPLETE);
+#if PERIPHERAL_DMAC_AVAILABLE
+void i2c::txdmac_event_handler(dmac_event_t event, void *param){
+	if(event == DMAC_EVENT_TRANFER_COMPLETE){
+		if(_txdmac_conf->mode != DMAC_MODE_CIRCULAR) txdmac_stop();
+		event_handle(I2C_EVENT_TRANSMIT_COMPLETE);
 	}
-	if(event == DMA_EVENT_TRANFER_ERROR){
-		pi2c->txdma_stop();
-		pi2c->event_handle(I2C_EVENT_ERROR);
+	if(event == DMAC_EVENT_TRANFER_ERROR){
+		txdmac_stop();
+		event_handle(I2C_EVENT_ERROR);
 	}
-	xSemaphoreGiveFromISR(pi2c->get_mutex(), NULL);
+	xSemaphoreGiveFromISR(_mutex, NULL);
 }
-static void i2c_rxdma_event_handler(dma_event_t event, void *param){
-	i2c_t pi2c = (i2c_t)param;
-	dma_t rxdma = pi2c->get_rxdma();
+void i2c::rxdmac_event_handler(dmac_event_t event, void *param){
+	if(event == DMAC_EVENT_TRANFER_COMPLETE){
+		rxinfo.count = rxinfo.length;
 
-	if(event == DMA_EVENT_TRANFER_COMPLETE){
-		dma_config_t *dma_conf = rxdma->get_config();
-		pi2c->rxinfo.count = pi2c->rxinfo.length;
-
-		if(dma_conf->mode != DMA_MODE_CIRCULAR) pi2c->rxdma_stop();
-		pi2c->event_handle(I2C_EVENT_RECEIVE_COMPLETE);
+		if(_rxdmac_conf->mode != DMAC_MODE_CIRCULAR) rxdmac_stop();
+		event_handle(I2C_EVENT_RECEIVE_COMPLETE);
 	}
-	if(event == DMA_EVENT_TRANFER_ERROR){
-		pi2c->rxdma_stop();
-		pi2c->event_handle(I2C_EVENT_ERROR);
+	if(event == DMAC_EVENT_TRANFER_ERROR){
+		rxdmac_stop();
+		event_handle(I2C_EVENT_ERROR);
 	}
-	xSemaphoreGiveFromISR(pi2c->get_mutex(), NULL);
+	xSemaphoreGiveFromISR(_mutex, NULL);
 }
-#endif /* PERIPHERAL_DMA_AVAILABLE */
+#endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 #if defined(I2C1)
 static i2c i2c_1(I2C1);

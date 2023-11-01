@@ -1,0 +1,115 @@
+
+# System features configuration.
+# Use for all device.
+
+
+# Menu features.
+menu "Features"
+    menu "Log Monitor"
+        config USE_LOG_MONITOR
+            bool "Log monitor"
+            default y
+
+        choice
+            prompt "Output stream"
+            default LOG_MONITOR_OUTPUT_UART
+            depends on USE_LOG_MONITOR
+            config LOG_MONITOR_OUTPUT_UART
+                bool "UART"
+            config LOG_MONITOR_OUTPUT_USBVCP
+                bool "USBVCP"
+        endchoice # choice Output stream
+
+        config LOG_MONITOR_LEVEL_SHORT
+            bool "Display short level"
+            default y
+            depends on USE_LOG_MONITOR
+            help
+            For example: "I" if enable and "INFO" if not. 
+        config LOG_MONITOR_TICK
+            bool "Display tick"
+            default y
+            depends on USE_LOG_MONITOR
+            help
+            Show tick time. 
+        config LOG_MONITOR_UART_INSTANCE
+            string "UART num."
+            default UART2
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
+            help
+            UART LOG Monitor RX port.
+        config LOG_MONITOR_UART_TXPIN
+            string "TX pin."
+            default A2
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
+            help
+            UART LOG Monitor TX pin.
+        config LOG_MONITOR_UART_RXPIN
+            string "RX pin."
+            default A3
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
+            help
+            UART LOG Monitor RX pin.
+        config LOG_MONITOR_UART_BAUDRATE
+            int "Baudrate."
+            default 115200
+            depends on USE_LOG_MONITOR && LOG_MONITOR_OUTPUT_UART
+            help
+            UART LOG Monitor baudrate.
+
+    endmenu
+
+    menu "Check config fail"
+        config SYS_CONFIG_FAIL_RESET_ENABLE
+            bool "Enable reset if config fail"
+            default y
+            help
+            If any config fail this will reset device.
+        config SYS_CONFIG_FAIL_RESET_TIME
+            int "Config fail reset wait time (Miliseconds)"
+            default 5000
+            depends on SYS_CONFIG_FAIL_RESET_ENABLE
+            help
+            Config fail reset wait time (Miliseconds).
+    endmenu
+
+
+    menu "WatchDog"
+        depends on PERIPH_IWDG_ENABLE
+        config WATCHDOG_ENABLE
+            bool "Enable Watchdog reset"
+            default y
+            help
+            Enable watchdog reset feature.
+        config WATCHDOG_WAIT_RESET_TIME
+            int "Wait for reset time (Miliseconds)"
+            default 5000
+            depends on WATCHDOG_ENABLE
+            help
+            Device will be reset after "This value" Miliseconds impossible refresh.
+    endmenu
+
+    menu "SDRAM support"
+        depends on FMC_SDRAM_ENABLE 
+        config MEM_SUPPORT_SDRAM
+            bool "Support SDRAM"
+            default n
+            help 
+            Support external SDRAM.
+        config FMC_SDRAM_SIZE
+            int "Capacity (MegaBits)"
+            depends on MEM_SUPPORT_SDRAM
+            default 64
+            help
+            External SDRAM capacity (MegaBits)
+        config FMC_SDRAM_ADDRESS
+            hex "Start address"
+            depends on MEM_SUPPORT_SDRAM
+            range 0xC0000000 0xD0000000
+            default 0xC0000000 if FMC_SDRAM_BANK1
+            default 0xD0000000 if FMC_SDRAM_BANK2
+            help
+            External SDRAM start address
+    endmenu
+endmenu
+# End menu features.

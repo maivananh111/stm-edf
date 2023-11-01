@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_IWDG_H_
 #define PERIPHERALS_IWDG_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_IWDG_EN && defined(IWDG)
 #define PERIPHERAL_IWDG_AVAILABLE 1

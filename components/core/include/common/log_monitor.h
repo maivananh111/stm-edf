@@ -8,7 +8,7 @@
 #ifndef LOG_MONITOR_H_
 #define LOG_MONITOR_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 
 #include "stdio.h"
 #include "stdarg.h"

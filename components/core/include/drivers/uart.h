@@ -9,7 +9,7 @@
 #define PERIPHERALS_UART_H_
 
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_UART_EN && (defined(USART1) || defined(USART2) || defined(USART3) || defined(UART4) || defined(UART5) || defined(USART6) || defined(UART7) || defined(UART8))
 #define PERIPHERAL_UART_AVAILABLE 1
@@ -59,10 +59,9 @@ struct uart_xfer_t{
 	uint16_t  count = 0U;
 };
 
-typedef void (*uart_evcb_t)(uart_event_t, void *);
 
-class uart;
-typedef uart* uart_t;
+using uart_event_handler_f = std::function<void(uart_event_t, void *)>;
+
 
 #define UART_CONFIG_DEFAULT() 						\
 {							  						\
@@ -78,13 +77,13 @@ class uart {
 		err_t initialize(uart_config_t *conf);
 		err_t deinitialize(void);
 	/** Event handle */
-		void register_event_handler(std::function<void(uart_event_t event, void *param)> event_handler_function, void *param = NULL);
+		void register_event_handler(uart_event_handler_f event_handler_function, void *param = NULL);
 		void unregister_event_handler(void);
 		void event_handle(uart_event_t event);
-	/** DMA link */
+	/** DMAC link */
 #if PERIPHERAL_DMAC_AVAILABLE
-		void link_dma(dmac_t txdma = NULL, dmac_t rxdma = NULL);
-		void unlink_dma(void);
+		void link_dmac(dmac_t txdmac = NULL, dmac_t rxdmac = NULL);
+		void unlink_dmac(void);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 	/** Get parameter */
 		USART_TypeDef *get_instance(void);
@@ -93,8 +92,8 @@ class uart {
 		uart_reception_t get_reception_mode(void);
 		char get_endchar(void);
 #if PERIPHERAL_DMAC_AVAILABLE
-		dmac_t get_txdma(void);
-		dmac_t get_rxdma(void);
+		dmac_t get_txdmac(void);
+		dmac_t get_rxdmac(void);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 		SemaphoreHandle_t get_txmutex(void);
 		SemaphoreHandle_t get_rxmutex(void);
@@ -110,23 +109,23 @@ class uart {
 		err_t receive(uart_reception_t reception, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
 		err_t transmit_it(uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
 		err_t receive_it(uart_reception_t reception, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
-		err_t transmit_dma(uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
-		err_t receive_dma(uart_reception_t reception, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
+		err_t transmit_dmac(uint8_t *pdata, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
+		err_t receive_dmac(uart_reception_t reception, uint16_t data_size, uint16_t timeout = CONFIG_PERIPH_UART_DEFAULT_OPERATION_TIMEOUT);
 
 		void abort_transmit_it(void);
 		void abort_receive_it(void);
 		void abort_all_it(void);
 
-		err_t abort_transmit_dma(void);
-		err_t abort_receive_dma(void);
-		err_t abort_all_dma(void);
+		err_t abort_transmit_dmac(void);
+		err_t abort_receive_dmac(void);
+		err_t abort_all_dmac(void);
 
 #if PERIPHERAL_DMAC_AVAILABLE
-		err_t txdma_stop(void);
-		err_t rxdma_stop(void);
+		err_t txdmac_stop(void);
+		err_t rxdmac_stop(void);
 
-		void txdma_event_handler(dmac_event_t event, void *param);
-		void rxdma_event_handler(dmac_event_t event, void *param);
+		void txdmac_event_handler(dmac_event_t event, void *param);
+		void rxdmac_event_handler(dmac_event_t event, void *param);
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		uart_xfer_t txinfo, rxinfo;
@@ -141,12 +140,12 @@ class uart {
 		SemaphoreHandle_t _txmutex, _rxmutex;
 
 #if PERIPHERAL_DMAC_AVAILABLE
-		dmac_t _txdma = NULL, _rxdma = NULL;
-		dmac_config_t *_txdma_conf = NULL, *_rxdma_conf = NULL;
+		dmac_t _txdmac = NULL, _rxdmac = NULL;
+		dmac_config_t *_txdmac_conf = NULL, *_rxdmac_conf = NULL;
 #endif /* PERIPHERAL_DMAC_AVAILABLE */
 
 		void *_event_parameter = NULL;
-		std::function<void(uart_event_t event, void *param)> _event_handler;
+		uart_event_handler_f _event_handler;
 		char _endchar = '\0';
 		uart_reception_t _reception_mode = UART_RECEPTION_UNTIL_COMPLETED;
 
@@ -154,6 +153,7 @@ class uart {
 		void hardware_deinitialize(void);
 };
 
+typedef uart* uart_t;
 
 uart_t uart_str_decode(char *str);
 

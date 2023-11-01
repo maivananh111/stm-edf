@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_EINTC_H_
 #define PERIPHERALS_EINTC_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_EINTC_EN
 #define PERIPHERAL_EINTC_AVAILABLE 1
@@ -29,12 +29,12 @@ typedef enum{
 	EINTC_RISING_FALLING_EDGE  = EXTI_RTSR_TR0 | EXTI_FTSR_TR0,
 } eintc_edge_t;
 
-typedef void(*eintc_evcb_t)(void *);
+using eintc_event_handler_f = std::function<void(void *)>;
 
 err_t eintc_line_initialize(GPIO_TypeDef *port, uint16_t pin, eintc_edge_t edge, uint32_t priority);
 void eintc_line_deinitialize(GPIO_TypeDef *port, uint16_t pin);
 
-void eintc_line_register_event_handler(uint16_t pin, std::function<void(void *)> event_handler_function, void *param = NULL);
+void eintc_line_register_event_handler(uint16_t pin, eintc_event_handler_f event_handler_function, void *param = NULL);
 void eintc_line_unregister_event_handler(uint16_t pin);
 
 

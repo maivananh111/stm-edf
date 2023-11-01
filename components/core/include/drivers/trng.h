@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_TRNG_H_
 #define PERIPHERALS_TRNG_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if CONFIG_PERIPH_TRNG_EN && defined(RNG)
 #define PERIPHERAL_TRNG_AVAILABLE 1

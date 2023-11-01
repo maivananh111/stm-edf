@@ -8,7 +8,7 @@
 #ifndef PERIPHERALS_TIM_H_
 #define PERIPHERALS_TIM_H_
 
-#include "devconfig.h"
+#include "kconfig.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #if (CONFIG_PERIPH_TIM_EN && (defined(TIM1) || defined(TIM2) || defined(TIM3) || defined(TIM4) || \
 					defined(TIM5) || defined(TIM6) || defined(TIM7) || defined(TIM8) || \
@@ -16,11 +16,16 @@
 					defined(TIM13) || defined(TIM14)))
 #define PERIPHERAL_TIM_AVAILABLE 1
 
+#include "iostream"
+#include "functional"
+
 #include "stdio.h"
 #include "common/error_check.h"
+#include "common/expression_check.h"
 #if CONFIG_PERIPH_DMAC_EN
-#include "drivers/dma.h"
+#include "drivers/dmac.h"
 #endif
+#include "drivers/gpio.h"
 
 #ifdef __cplusplus
 extern "C"{
@@ -46,7 +51,7 @@ typedef enum{
 	TIM_CENTER_MODE1,
 	TIM_CENTER_MODE2,
 	TIM_CENTER_MODE3,
-}tim_align_t;
+} tim_align_t;
 
 typedef enum{
 	TIM_ARP_DISABLE = 0U,
@@ -57,12 +62,7 @@ typedef enum{
 	TIM_RISING_EDGE = 0U,
 	TIM_FALLING_EDGE = 0x01U,
 	TIM_BOTH_EDGE = 0x05U,
-}tim_polarity_t;
-
-typedef enum{
-	TIM_INTERRUPT_DISABLE = 0U,
-	TIM_INTERRUPT_EN = 1U,
-} tim_interrupt_t;
+} tim_polarity_t;
 
 
 typedef enum{
@@ -74,7 +74,7 @@ typedef enum{
 	TIM_EVENT_CAPTURECOMPARE3,
 	TIM_EVENT_CAPTURECOMPARE4,
 	TIM_EVENT_NOEVENT,
-}tim_event_t;
+} tim_event_t;
 
 typedef struct{
 	uint32_t 		prescaler = 0U;
@@ -82,7 +82,6 @@ typedef struct{
 	tim_direction_t direction =TIM_COUNTER_UP;
 	tim_align_t     align = TIM_EDGE_ALIGN;
 	tim_arpe_t		autoreloadpreload = TIM_ARP_DISABLE;
-	tim_interrupt_t interrupt = TIM_INTERRUPT_DISABLE;
 	uint32_t        interruptpriority = 0U;
 } tim_config_t;
 
@@ -105,16 +104,15 @@ typedef enum{
 
 
 typedef struct {
-	GPIO_TypeDef *port;
-	uint16_t pin;
+	char  		     *pin;
 	tim_pwm_invert_t invert = TIM_PWM_NOINVERT;
-	tim_preload_t preload = TIM_PRELOAD_DISABLE;
-	tim_fast_mode_t fastmode = TIM_FASTMODE_DISABLE;
+	tim_preload_t 	 preload = TIM_PRELOAD_DISABLE;
+	tim_fast_mode_t  fastmode = TIM_FASTMODE_DISABLE;
 	// Input mode.
-	tim_polarity_t polarity = TIM_RISING_EDGE;
-	uint8_t ch1_filter = 0U;
-	uint8_t ch2_filter = 0U;
-} tim_pwm_t;
+	tim_polarity_t   polarity = TIM_RISING_EDGE;
+	uint8_t 		 ch1_filter = 0U;
+	uint8_t 		 ch2_filter = 0U;
+} tim_config_pwm_t;
 
 // TIMER ENCODER MODE ENUM - STRUCT.
 typedef enum {
@@ -125,26 +123,23 @@ typedef enum {
 
 typedef struct {
 	tim_encoder_mode_t mode = TIM_ENCODER_MODE1;
-	GPIO_TypeDef *encA_ch1_port = NULL;
-	uint16_t encA_ch1_pin = 0U;
-	GPIO_TypeDef *encB_ch2_port = NULL;
-	uint16_t encB_ch2_pin = 0U;
-	tim_polarity_t encA_ch1_edge = TIM_RISING_EDGE;
-	tim_polarity_t encB_ch2_edge = TIM_RISING_EDGE;
-	uint8_t encA_ch1_filter = 0U;
-	uint8_t encB_ch2_filter = 0U;
-	uint8_t encA_ch1_prescaler = 0U;
-	uint8_t encB_ch2_prescaler = 0U;
-} tim_encoder_t;
+	char 		   	   *encA_ch1_pin;
+	char 		       *encB_ch2_pin;
+	tim_polarity_t 	   encA_ch1_edge = TIM_RISING_EDGE;
+	tim_polarity_t 	   encB_ch2_edge = TIM_RISING_EDGE;
+	uint8_t 		   encA_ch1_filter = 0U;
+	uint8_t 		   encB_ch2_filter = 0U;
+	uint8_t 		   encA_ch1_prescaler = 0U;
+	uint8_t 		   encB_ch2_prescaler = 0U;
+} tim_config_encoder_t;
 
 // TIMER INPUT CAPTURE MODE ENUM - STRUCT.
 typedef struct {
-	GPIO_TypeDef *port = NULL;
-	uint16_t pin = 0;
+	char           *pin;
 	tim_polarity_t polarity = TIM_RISING_EDGE;
-	uint8_t prescaler = 0;
-	uint8_t filter = 0;
-} tim_inputcapture_t;
+	uint8_t        prescaler = 0;
+	uint8_t        filter = 0;
+} tim_config_inputcapture_t;
 
 // TIMER OUTPUT COMPARE MODE ENUM - STRUCT.
 typedef enum {
@@ -162,140 +157,155 @@ typedef enum {
 } tim_level_polarity_t;
 
 typedef struct {
+	char 				 	 *pin;
 	tim_outputcompare_mode_t mode = TIM_FROZEN_MODE;
-	GPIO_TypeDef *port = NULL;
-	uint16_t pin = 0U;
-	tim_preload_t preload = TIM_PRELOAD_DISABLE;
-	tim_level_polarity_t level_polarity = TIM_LEVEL_POLARITY_HIGH;
+	tim_preload_t 			 preload = TIM_PRELOAD_DISABLE;
+	tim_level_polarity_t 	 level_polarity = TIM_LEVEL_POLARITY_HIGH;
 } tim_outputcompare_t;
 
 
+using tim_event_handler_f = std::function<void(tim_channel_t, tim_event_t, void *)>;
+
 class tim{
 	public:
-		tim(TIM_TypeDef *Timer);
+		tim(TIM_TypeDef *tim);
 
-		err_t tim_init(tim_config_t *conf);
-#if PERIPHERAL_DMA_AVAILABLE
-		void tim_add_dma(dma_t dma_udp = NULL, dma_t dma_ch1 = NULL, dma_t dma_ch2 = NULL, dma_t dma_ch3 = NULL, dma_t dma_ch4 = NULL);
+		err_t base_initialize(tim_config_t *conf);
+		void base_deinitialize(void);
+		tim_config_t *get_config(void);
+
+		void register_event_handler(tim_event_handler_f event_handler_function, void *param = NULL);
+		void unregister_event_handler(void);
+
+#if PERIPHERAL_DMAC_AVAILABLE
+		void link_dmac(dmac_t dmac_udp = NULL, dmac_t dmac_ch1 = NULL, dmac_t dmac_ch2 = NULL, dmac_t dmac_ch3 = NULL, dmac_t dmac_ch4 = NULL);
+		void unlink_dmac(void);
+		dmac_t get_dmac(uint8_t index = 0);
 #endif
-		tim_config_t *tim_get_config(void);
+		inline void set_prescaler (uint32_t prescaler);
+		inline void set_autoreload(uint32_t autoreload);
 
-		void tim_set_prescaler (uint32_t psc);
-		void tim_set_autoreload(uint32_t arl);
+		inline void reset_counter(void);
+		inline uint32_t get_counter(void);
 
-		void tim_reset_counter(void);
-		uint32_t tim_get_counter(void);
-		void tim_delay_us(uint32_t us);
-		void tim_delay_ms(uint32_t ms);
+		void delay_us(uint32_t us);
+		void delay_ms(uint32_t ms);
 
-		err_t tim_add_event_handler(void(*event_handler_function)(tim_channel_t channel, tim_event_t event, void *param), void *param = NULL);
-		err_t tim_remove_event_handler(void);
-
-/* TIMER basic */
-		err_t tim_start(void);
-		err_t tim_stop(void);
-
-		err_t tim_start_it(void);
-		err_t tim_stop_it(void);
-
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_start_dma(uint32_t *pcnt, uint16_t size = 1);
-		err_t tim_stop_dma(void);
+/* TIMER base */
+		inline void base_start(void);
+		inline void base_stop(void);
+		inline void base_start_it(void);
+		inline void base_stop_it(void);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t base_start_dmac(uint32_t *parrbuff, uint16_t size = 1);
+		err_t base_stop_dmac(void);
 #endif
 
 /* TIMER PWM output mode */
-		err_t tim_set_mode_pwm_output(tim_channel_t channel, tim_pwm_t *conf);
+		err_t pwm_output_initialize(tim_channel_t channel, tim_config_pwm_t *conf);
+		inline void pwm_output_set_duty(tim_channel_t channel, uint32_t pwm);
 
-		err_t tim_pwm_output_start(tim_channel_t channel, uint32_t pwm);
-		err_t tim_pwm_output_stop(tim_channel_t channel);
-
-		err_t tim_pwm_output_start_it(tim_channel_t channel, uint32_t pwm);
-		err_t tim_pwm_output_stop_it(tim_channel_t channel);
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_pwm_output_start_dma(tim_channel_t channel, uint32_t *pwm_buffer, uint16_t size = 1);
-		err_t tim_pwm_output_stop_dma(tim_channel_t channel);
+		inline void pwm_output_start(tim_channel_t channel, uint32_t pwm);
+		inline void pwm_output_stop(tim_channel_t channel);
+		inline void pwm_output_start_it(tim_channel_t channel, uint32_t pwm);
+		inline void pwm_output_stop_it(tim_channel_t channel);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t pwm_output_start_dmac(tim_channel_t channel, uint32_t *ppwm_buffer, uint16_t size = 1);
+		err_t pwm_output_stop_dmac(tim_channel_t channel);
 #endif
-		err_t tim_pwm_output_set_duty(tim_channel_t channel, uint32_t pwm);
-
 
 /* TIMER PWM input mode */
-		err_t tim_set_mode_pwm_input(tim_channel_t channel, tim_pwm_t *conf);
+		err_t pwm_input_initialize(tim_channel_t channel, tim_config_pwm_t *conf);
 
-		err_t tim_pwm_input_start(tim_channel_t channel);
-		err_t tim_pwm_input_stop(tim_channel_t channel);
-
-		err_t tim_pwm_input_start_it(tim_channel_t channel);
-		err_t tim_pwm_input_stop_it(tim_channel_t channel);
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_pwm_input_start_dma(tim_channel_t channel, uint32_t *pwm_buffer, uint16_t size = 1);
-		err_t tim_pwm_input_stop_dma(tim_channel_t channel);
+		err_t pwm_input_start(tim_channel_t channel);
+		err_t pwm_input_stop(tim_channel_t channel);
+		err_t pwm_input_start_it(tim_channel_t channel);
+		err_t pwm_input_stop_it(tim_channel_t channel);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t pwm_input_start_dmac(tim_channel_t channel, uint32_t *pwm_buffer, uint16_t size = 1);
+		err_t pwm_input_stop_dmac(tim_channel_t channel);
 #endif
 
 /* TIMER encoder mode */
-		err_t tim_set_mode_encoder(tim_encoder_t *conf);
+		err_t encoder_initialize(tim_config_encoder_t *conf);
+		uint32_t encoder_get_base_counter(void);
+		int16_t encoder_get_counter(void);
 
-		err_t tim_encoder_start(void);
-		err_t tim_encoder_stop(void);
-
-		err_t tim_encoder_start_it(void);
-		err_t tim_encoder_stop_it(void);
-
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_encoder_start_dma(uint32_t *encA_buffer = NULL, uint32_t *encB_buffer = NULL, uint16_t size = 1);
-		err_t tim_encoder_stop_dma(void);
+		err_t encoder_start(void);
+		err_t encoder_stop(void);
+		err_t encoder_start_it(void);
+		err_t encoder_stop_it(void);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t encoder_start_dmac(uint32_t *encA_buffer = NULL, uint32_t *encB_buffer = NULL, uint16_t size = 1);
+		err_t encoder_stop_dmac(void);
 #endif
-		uint32_t tim_encoder_get_base_counter(void);
-		int16_t tim_encoder_get_counter(void);
 
 /* TIMER input capture mode */
-		err_t tim_set_mode_inputcapture(tim_channel_t channel, tim_inputcapture_t *conf);
-
-		err_t tim_inputcapture_start(tim_channel_t channel);
-		err_t tim_inputcapture_stop(tim_channel_t channel);
-
-		err_t tim_inputcapture_start_it(tim_channel_t channel);
-		err_t tim_inputcapture_stop_it(tim_channel_t channel);
-
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_inputcapture_start_dma(tim_channel_t channel, uint32_t *capture_buffer, uint16_t size);
-		err_t tim_inputcapture_stop_dma(tim_channel_t channel);
-#endif
+		err_t inputcapture_initialize(tim_channel_t channel, tim_config_inputcapture_t *conf);
 		uint32_t tim_get_capture_counter(tim_channel_t channel);
 
-/* TIMER output compare mode */
-		err_t tim_set_mode_outputcompare(tim_channel_t channel, tim_outputcompare_t *conf);
-
-		err_t tim_outputcompare_start(tim_channel_t channel, uint32_t value);
-		err_t tim_outputcompare_stop(tim_channel_t channel);
-
-		err_t tim_outputcompare_start_it(tim_channel_t channel, uint32_t value);
-		err_t tim_outputcompare_stop_it(tim_channel_t channel);
-#if PERIPHERAL_DMA_AVAILABLE
-		err_t tim_outputcompare_start_dma(tim_channel_t channel, uint32_t *oc_buffer, uint16_t size = 1);
-		err_t tim_outputcompare_stop_dma(tim_channel_t channel);
+		err_t inputcapture_start(tim_channel_t channel);
+		err_t inputcapture_stop(tim_channel_t channel);
+		err_t inputcapture_start_it(tim_channel_t channel);
+		err_t inputcapture_stop_it(tim_channel_t channel);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t inputcapture_start_dmac(tim_channel_t channel, uint32_t *capture_buffer, uint16_t size);
+		err_t inputcapture_stop_dmac(tim_channel_t channel);
 #endif
 
-		err_t tim_set_pulse(tim_channel_t channel, uint32_t pulse);
+/* TIMER output compare mode */
+		err_t outputcompare_initialize(tim_channel_t channel, tim_outputcompare_t *conf);
+		err_t outputcompare_set_pulse(tim_channel_t channel, uint32_t pulse);
 
-
-		void (*_event_handler)(tim_channel_t channel, tim_event_t event, void *param) = NULL;
-		TIM_TypeDef *_tim;
-		void *_event_parameter = NULL;
-		volatile uint32_t _counter = 0;
-
-#if PERIPHERAL_DMA_AVAILABLE
-		dma_t _dma_upd = NULL;
-		dma_t _dma_ch1 = NULL;
-		dma_t _dma_ch2 = NULL;
-		dma_t _dma_ch3 = NULL;
-		dma_t _dma_ch4 = NULL;
+		err_t outputcompare_start(tim_channel_t channel, uint32_t value);
+		err_t outputcompare_stop(tim_channel_t channel);
+		err_t outputcompare_start_it(tim_channel_t channel, uint32_t value);
+		err_t outputcompare_stop_it(tim_channel_t channel);
+#if PERIPHERAL_DMAC_AVAILABLE
+		err_t outputcompare_start_dmac(tim_channel_t channel, uint32_t *oc_buffer, uint16_t size = 1);
+		err_t outputcompare_stop_dmac(tim_channel_t channel);
 #endif
 
 	private:
+		TIM_TypeDef *_instance;
 		tim_config_t *_conf = NULL;
 		IRQn_Type _IRQn;
+#if defined(STM32F4)
+		gpio_function_t _gpio_func;
+#endif
 
-		void tim_clear_update_isr(void);
+		tim_event_handler_f _event_handler = NULL;
+		void *_event_parameter = NULL;
+
+		__IO uint32_t _counter = 0;
+
+#if PERIPHERAL_DMAC_AVAILABLE
+		dmac_t _dmac_upd = NULL;
+		dmac_t _dmac_ch1 = NULL;
+		dmac_t _dmac_ch2 = NULL;
+		dmac_t _dmac_ch3 = NULL;
+		dmac_t _dmac_ch4 = NULL;
+		dmac_config_t *_dmac_upd_conf = NULL;
+		dmac_config_t *_dmac_ch1_conf = NULL;
+		dmac_config_t *_dmac_ch2_conf = NULL;
+		dmac_config_t *_dmac_ch3_conf = NULL;
+		dmac_config_t *_dmac_ch4_conf = NULL;
+
+		void dmaupd_event_handler(dmac_event_t, void *);
+		void dmach1_event_handler(dmac_event_t, void *);
+		void dmach2_event_handler(dmac_event_t, void *);
+		void dmach3_event_handler(dmac_event_t, void *);
+		void dmach4_event_handler(dmac_event_t, void *);
+#endif
+
+		void hardware_initialize(void);
+		void hardware_deinitialize(void);
+		void hardware_output_initialize(void);
+		void hardware_input_initialize(void);
+
+		inline void clear_update_isr(void);
+		inline void enable_interrupt(void);
+		inline void disable_interrupt(void);
 };
 
 typedef tim* tim_t;

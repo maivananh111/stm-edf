@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-#include "devconfig.h"
+#include "drvperdev/lan87xx.h"
 #include CONFIG_CMSIS_HEADER_FILE
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

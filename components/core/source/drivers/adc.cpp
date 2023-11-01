@@ -16,7 +16,7 @@
 #include "stdlib.h"
 #include "string.h"
 
-#if CONFIG_PERIPH_UART_LOG
+#if CONFIG_PERIPH_ADC_LOG
 #include "common/log_monitor.h"
 #endif /* CONFIG_PERIPH_UART_LOG */
 

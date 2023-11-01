@@ -19,73 +19,15 @@
 static const char *TAG = "DMA";
 static const uint8_t Channel_Index[8U] = {0U, 6U, 16U, 22U, 0U, 6U, 16U, 22U};
 
-#if defined(DMA1_Stream0)
-static dmac dma1_0(DMA1);
-dmac_t dma1_stream0 = &dma1_0;
-#endif /* defined(DMA1_Stream0) */
-#if defined(DMA1_Stream1)
-static dmac dma1_1(DMA1);
-dmac_t dma1_stream1 = &dma1_1;
-#endif /* defined(DMA1_Stream1) */
-#if defined(DMA1_Stream2)
-static dmac dma1_2(DMA1);
-dmac_t dma1_stream2 = &dma1_2;
-#endif /* defined(DMA1_Stream2) */
-#if defined(DMA1_Stream3)
-static dmac dma1_3(DMA1);
-dmac_t dma1_stream3 = &dma1_3;
-#endif /* defined(DMA1_Stream3) */
-#if defined(DMA1_Stream4)
-static dmac dma1_4(DMA1);
-dmac_t dma1_stream4 = &dma1_4;
-#endif /* defined(DMA1_Stream4) */
-#if defined(DMA1_Stream5)
-static dmac dma1_5(DMA1);
-dmac_t dma1_stream5 = &dma1_5;
-#endif /* defined(DMA1_Stream5) */
-#if defined(DMA1_Stream6)
-static dmac dma1_6(DMA1);
-dmac_t dma1_stream6 = &dma1_6;
-#endif /* defined(DMA1_Stream6) */
-#if defined(DMA1_Stream7)
-static dmac dma1_7(DMA1);
-dmac_t dma1_stream7 = &dma1_7;
-#endif /* defined(DMA1_Stream7) */
-/**
- *  DMA2 IRQ HANDLER
- */
-#if defined(DMA2_Stream0)
-static dmac dma2_0(DMA2);
-dmac_t dma2_stream0 = &dma2_0;
-#endif /* defined(DMA2_Stream0) */
-#if defined(DMA2_Stream1)
-static dmac dma2_1(DMA2);
-dmac_t dma2_stream1 = &dma2_1;
-#endif /* defined(DMA2_Stream1) */
-#if defined(DMA2_Stream2)
-static dmac dma2_2(DMA2);
-dmac_t dma2_stream2 = &dma2_2;
-#endif /* defined(DMA2_Stream2) */
-#if defined(DMA2_Stream3)
-static dmac dma2_3(DMA2);
-dmac_t dma2_stream3 = &dma2_3;
-#endif /* defined(DMA2_Stream3) */
-#if defined(DMA2_Stream4)
-static dmac dma2_4(DMA2);
-dmac_t dma2_stream4 = &dma2_4;
-#endif /* defined(DMA2_Stream4) */
-#if defined(DMA2_Stream5)
-static dmac dma2_5(DMA2);
-dmac_t dma2_stream5 = &dma2_5;
-#endif /* defined(DMA2_Stream5) */
-#if defined(DMA2_Stream6)
-static dmac dma2_6(DMA2);
-dmac_t dma2_stream6 = &dma2_6;
-#endif /* defined(DMA2_Stream6) */
-#if defined(DMA2_Stream7)
-static dmac dma2_7(DMA2);
-dmac_t dma2_stream7 = &dma2_7;
-#endif /* defined(DMA2_Stream7) */
+
+#ifdef CONFIG_PERIPH_DMAC_LOG
+#define DMAC_DBG(__MSG__)\
+	LOG_MESS(LOG_ERROR, TAG, __MSG__);
+#else
+#define DMAC_DBG(__MSG__)\
+{}
+#endif
+
 
 static void DMACommon_IRQ_Handler(DMA_Stream_TypeDef *pstream, dmac_t pdma);
 
@@ -117,7 +59,7 @@ err_t dmac::initialize(dmac_config_t *conf){
 	tmpreg &=~ 0xFFFFU;
 
 	tmpreg |= (_conf->mode << DMA_CCR_CIRC_Pos) | (_conf->channelpriority << DMA_CCR_PL_Pos)
-			 | DMA_CCR_MINC | (_conf->datasize << DMA_CCR_PSIZE_Pos) | ((_conf->datasize << DMA_CCR_PSIZE_Pos) << 2U);
+			 | DMA_CCR_MINC | (_conf->datasize << DMA_CCR_PSIZE_Pos) | (_conf->datasize << DMA_CCR_MSIZE_Pos);
 	if(_conf->direction == DMA_MEM_TO_MEM) tmpreg |= DMA_CCR_MEM2MEM;
 	else tmpreg |= (_conf->direction << DMA_CCR_DIR_Pos);
 
@@ -186,9 +128,7 @@ err_t dmac::initialize(dmac_config_t *conf){
 
 	if(_conf->interruptpriority + CONFIG_RTOS_MAX_SYSTEM_INT_PRIORITY > 15){
 		ERROR_SET(ret, E_INVALID);
-#if CONFIG_PERIPH_I2C_LOG
-		LOG_MESS(LOG_ERROR, TAG, "Interrupt priority out of range");
-#endif /* CONFIG_PERIPH_SPI_LOG */
+		DMAC_DBG("Interrupt priority out of range");
 		system_reset();
 		return ret;
 	}
@@ -253,7 +193,7 @@ SemaphoreHandle_t dmac::get_mutex(void){
 }
 
 
-void dmac::register_event_handler(std::function<void(dmac_event_t, void *)> event_handler_function, void *event_parameter){
+void dmac::register_event_handler(dmac_event_handler_f event_handler_function, void *event_parameter){
 	_event_handler = event_handler_function;
 	_event_parameter = event_parameter;
 }
@@ -267,6 +207,42 @@ void dmac::event_handle(dmac_event_t event){
 	if(_event_handler) _event_handler(event, _event_parameter);
 }
 
+void dmac::set_direction(dmac_direction_t direction){
+	__IO uint32_t tmpreg;
+
+	_conf->direction = direction;
+	CLEAR_BIT(_conf->stream->CR, DMA_SxCR_EN);
+#if defined(STM32F1)
+	tmpreg = READ_REG(_conf->stream->CCR);
+	tmpreg &=~ (DMA_CCR_MEM2MEM | DMA_CCR_DIR);
+	if(_conf->direction == DMA_MEM_TO_MEM) tmpreg |= DMA_CCR_MEM2MEM;
+	else tmpreg |= (_conf->direction << DMA_CCR_DIR_Pos);
+	WRITE_REG(_conf->stream->CCR, tmpreg);
+#elif defined(STM32F4)
+	tmpreg = READ_REG(_conf->stream->CR);
+	tmpreg &=~ DMA_SxCR_DIR;
+	tmpreg |= (_conf->direction << DMA_SxCR_DIR_Pos);
+	WRITE_REG(_conf->stream->CR, tmpreg);
+#endif
+}
+
+void dmac::set_datasize(dmac_datasize_t datasize){
+	__IO uint32_t tmpreg;
+
+	_conf->datasize = datasize;
+	CLEAR_BIT(_conf->stream->CR, DMA_SxCR_EN);
+#if defined(STM32F1)
+	tmpreg = READ_REG(_conf->stream->CCR);
+	tmpreg &=~ (DMA_CCR_PSIZE | DMA_CCR_PSIZE);
+	tmpreg |= (_conf->datasize << DMA_CCR_PSIZE_Pos) | (_conf->datasize << DMA_CCR_MSIZE_Pos);
+	WRITE_REG(_conf->stream->CCR, tmpreg);
+#elif defined(STM32F4)
+	tmpreg = READ_REG(_conf->stream->CR);
+	tmpreg &=~ (DMA_SxCR_PSIZE | DMA_SxCR_PSIZE);
+	tmpreg |= (_conf->datasize << DMA_SxCR_PSIZE_Pos) | (_conf->datasize << DMA_SxCR_MSIZE_Pos);
+	WRITE_REG(_conf->stream->CR, tmpreg);
+#endif
+}
 
 
 void dmac::config(uint32_t psource, uint32_t pdest, uint32_t size){
@@ -327,9 +303,7 @@ err_t dmac::config_start_session(struct dmac_session_config_t conf){
 	}
 	else{
 		ERROR_SET(ret, E_BUSY);
-#if CONFIG_PERIPH_DMAC_LOG
-		LOG_MESS(LOG_ERROR, TAG, "DMA session was blocked by mutex");
-#endif /* CONFIG_PERIPH_DMAC_LOG */
+		DMAC_DBG("DMA session was blocked by mutex");
 	}
 
 	return ret;
@@ -362,9 +336,7 @@ err_t dmac::wait_for(dmac_event_t break_event, uint32_t timeout){
 	if(err == pdTRUE){
 		ERROR_SET(ret, E_FAIL);
 		(in_it == pdTRUE)? xSemaphoreGiveFromISR(_mutex, NULL) : xSemaphoreGive(_mutex);
-#if CONFIG_PERIPH_DMAC_LOG
-		LOG_MESS(LOG_ERROR, TAG, "DMA session has not been configured and started");
-#endif /* CONFIG_PERIPH_DMAC_LOG */
+		DMAC_DBG("DMA session has not been configured and started");
 		return ret;
 	}
 
@@ -571,6 +543,78 @@ static void DMACommon_IRQ_Handler(DMA_Stream_TypeDef *pstream, dmac_t pdma){
 #endif /* STM32F4 */
 
 
+
+
+
+
+
+#if defined(DMA1_Stream0)
+static dmac dma1_0(DMA1);
+dmac_t dma1_stream0 = &dma1_0;
+#endif /* defined(DMA1_Stream0) */
+#if defined(DMA1_Stream1)
+static dmac dma1_1(DMA1);
+dmac_t dma1_stream1 = &dma1_1;
+#endif /* defined(DMA1_Stream1) */
+#if defined(DMA1_Stream2)
+static dmac dma1_2(DMA1);
+dmac_t dma1_stream2 = &dma1_2;
+#endif /* defined(DMA1_Stream2) */
+#if defined(DMA1_Stream3)
+static dmac dma1_3(DMA1);
+dmac_t dma1_stream3 = &dma1_3;
+#endif /* defined(DMA1_Stream3) */
+#if defined(DMA1_Stream4)
+static dmac dma1_4(DMA1);
+dmac_t dma1_stream4 = &dma1_4;
+#endif /* defined(DMA1_Stream4) */
+#if defined(DMA1_Stream5)
+static dmac dma1_5(DMA1);
+dmac_t dma1_stream5 = &dma1_5;
+#endif /* defined(DMA1_Stream5) */
+#if defined(DMA1_Stream6)
+static dmac dma1_6(DMA1);
+dmac_t dma1_stream6 = &dma1_6;
+#endif /* defined(DMA1_Stream6) */
+#if defined(DMA1_Stream7)
+static dmac dma1_7(DMA1);
+dmac_t dma1_stream7 = &dma1_7;
+#endif /* defined(DMA1_Stream7) */
+/**
+ *  DMA2 IRQ HANDLER
+ */
+#if defined(DMA2_Stream0)
+static dmac dma2_0(DMA2);
+dmac_t dma2_stream0 = &dma2_0;
+#endif /* defined(DMA2_Stream0) */
+#if defined(DMA2_Stream1)
+static dmac dma2_1(DMA2);
+dmac_t dma2_stream1 = &dma2_1;
+#endif /* defined(DMA2_Stream1) */
+#if defined(DMA2_Stream2)
+static dmac dma2_2(DMA2);
+dmac_t dma2_stream2 = &dma2_2;
+#endif /* defined(DMA2_Stream2) */
+#if defined(DMA2_Stream3)
+static dmac dma2_3(DMA2);
+dmac_t dma2_stream3 = &dma2_3;
+#endif /* defined(DMA2_Stream3) */
+#if defined(DMA2_Stream4)
+static dmac dma2_4(DMA2);
+dmac_t dma2_stream4 = &dma2_4;
+#endif /* defined(DMA2_Stream4) */
+#if defined(DMA2_Stream5)
+static dmac dma2_5(DMA2);
+dmac_t dma2_stream5 = &dma2_5;
+#endif /* defined(DMA2_Stream5) */
+#if defined(DMA2_Stream6)
+static dmac dma2_6(DMA2);
+dmac_t dma2_stream6 = &dma2_6;
+#endif /* defined(DMA2_Stream6) */
+#if defined(DMA2_Stream7)
+static dmac dma2_7(DMA2);
+dmac_t dma2_stream7 = &dma2_7;
+#endif /* defined(DMA2_Stream7) */
 
 /**
  * STM32F1 Device
